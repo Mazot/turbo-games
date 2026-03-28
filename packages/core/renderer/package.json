@@ -1,0 +1,28 @@
+{
+  "name": "@turbo-games/renderer",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "three": "^0.183.2",
+    "eventemitter3": "^5.0.1",
+    "@vladkrutenyuk/three-kvy-core": "^2.3.8"
+  },
+  "devDependencies": {
+    "@types/three": "^0.183.1",
+    "typescript": "^6.0.0"
+  }
+}

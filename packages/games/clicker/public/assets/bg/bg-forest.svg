@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0d3b2e"/>
+      <stop offset="100%" stop-color="#1e6b50"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a4a2a"/>
+      <stop offset="100%" stop-color="#0a2010"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- Ground -->
+  <rect x="0" y="400" width="512" height="112" fill="url(#ground)"/>
+  <!-- Far trees (lighter) -->
+  <rect x="30" y="260" width="12" height="160" fill="#0a3018"/>
+  <polygon points="36,200 8,275 64,275" fill="#1a5028"/>
+  <polygon points="36,230 5,285 67,285" fill="#154020"/>
+  <rect x="90" y="280" width="10" height="140" fill="#0a3018"/>
+  <polygon points="95,225 70,290 120,290" fill="#1a5028"/>
+  <rect x="380" y="270" width="12" height="150" fill="#0a3018"/>
+  <polygon points="386,210 358,280 414,280" fill="#1a5028"/>
+  <rect x="450" y="260" width="10" height="160" fill="#0a3018"/>
+  <polygon points="455,200 430,270 480,270" fill="#1a5028"/>
+  <!-- Near trees (darker) -->
+  <rect x="150" y="230" width="16" height="190" fill="#062010"/>
+  <polygon points="158,155 124,245 192,245" fill="#0d3818"/>
+  <polygon points="158,185 118,258 198,258" fill="#0a3015"/>
+  <rect x="310" y="240" width="16" height="180" fill="#062010"/>
+  <polygon points="318,165 284,255 352,255" fill="#0d3818"/>
+  <polygon points="318,195 278,268 358,268" fill="#0a3015"/>
+  <!-- Fireflies -->
+  <circle cx="200" cy="300" r="2" fill="#aaff88" opacity="0.7"/>
+  <circle cx="280" cy="350" r="2" fill="#aaff88" opacity="0.5"/>
+  <circle cx="350" cy="310" r="2" fill="#aaff88" opacity="0.8"/>
+  <circle cx="120" cy="360" r="1.5" fill="#aaff88" opacity="0.6"/>
+  <!-- Stars through canopy -->
+  <circle cx="200" cy="60" r="1.2" fill="white" opacity="0.6"/>
+  <circle cx="310" cy="40" r="1" fill="white" opacity="0.5"/>
+  <circle cx="256" cy="80" r="1.5" fill="white" opacity="0.7"/>
+</svg>

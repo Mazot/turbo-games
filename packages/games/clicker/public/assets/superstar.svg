@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="40%" stop-color="#FFF176"/>
+      <stop offset="100%" stop-color="#FFB300"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="outer-glow">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <polygon points="50,4 61,33 92,33 68,52 78,81 50,62 22,81 32,52 8,33 39,33"
+    fill="url(#g)" stroke="#F9A825" stroke-width="1.5" filter="url(#outer-glow)"/>
+  <polygon points="50,18 57,40 80,40 62,53 69,75 50,62 31,75 38,53 20,40 43,40"
+    fill="rgba(255,255,200,0.5)"/>
+  <circle cx="50" cy="44" r="6" fill="rgba(255,255,255,0.9)"/>
+</svg>

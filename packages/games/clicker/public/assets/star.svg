@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#FFE87C"/>
+      <stop offset="100%" stop-color="#F5A623"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <polygon points="50,8 61,35 90,35 67,55 76,82 50,64 24,82 33,55 10,35 39,35"
+    fill="url(#g)" stroke="#E8921A" stroke-width="2" filter="url(#glow)"/>
+</svg>

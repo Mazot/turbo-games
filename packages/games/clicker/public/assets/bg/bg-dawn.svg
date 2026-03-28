@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#4a1a6b"/>
+      <stop offset="35%" stop-color="#ff6e7f"/>
+      <stop offset="70%" stop-color="#ffa07a"/>
+      <stop offset="100%" stop-color="#bfe9ff"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2a1a3e"/>
+      <stop offset="100%" stop-color="#1a0a20"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- Rising sun glow -->
+  <ellipse cx="256" cy="400" rx="220" ry="100" fill="rgba(255,200,100,0.25)"/>
+  <ellipse cx="256" cy="400" rx="140" ry="60" fill="rgba(255,180,80,0.3)"/>
+  <!-- Sun peeking over horizon -->
+  <circle cx="256" cy="415" r="55" fill="#FFE082" opacity="0.9"/>
+  <circle cx="256" cy="415" r="70" fill="#FFCC02" opacity="0.2"/>
+  <!-- Horizon -->
+  <rect x="0" y="420" width="512" height="92" fill="url(#ground)"/>
+  <!-- Clouds lit by dawn light -->
+  <ellipse cx="100" cy="200" rx="80" ry="22" fill="rgba(255,150,100,0.55)"/>
+  <ellipse cx="85" cy="193" rx="50" ry="20" fill="rgba(255,120,80,0.65)"/>
+  <ellipse cx="380" cy="160" rx="90" ry="20" fill="rgba(255,140,90,0.5)"/>
+  <ellipse cx="395" cy="154" rx="55" ry="18" fill="rgba(255,160,110,0.6)"/>
+  <ellipse cx="220" cy="100" rx="65" ry="16" fill="rgba(200,100,150,0.45)"/>
+  <!-- Stars fading -->
+  <circle cx="60" cy="50" r="1.2" fill="white" opacity="0.5"/>
+  <circle cx="180" cy="40" r="1" fill="white" opacity="0.4"/>
+  <circle cx="320" cy="55" r="1.4" fill="white" opacity="0.45"/>
+  <circle cx="460" cy="35" r="1" fill="white" opacity="0.4"/>
+  <circle cx="410" cy="80" r="1.2" fill="white" opacity="0.35"/>
+  <!-- Horizon silhouette -->
+  <path d="M0,420 Q80,405 160,418 Q200,425 256,415 Q310,407 380,420 Q440,428 512,418" fill="#1a0a20"/>
+</svg>

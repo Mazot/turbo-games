@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <radialGradient id="g" cx="50%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FF8FAB"/>
+      <stop offset="100%" stop-color="#E8183A"/>
+    </radialGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  <path d="M50,82 C50,82 12,56 12,32 C12,18 22,10 35,10 C42,10 48,14 50,18 C52,14 58,10 65,10 C78,10 88,18 88,32 C88,56 50,82 50,82Z"
+    fill="url(#g)" stroke="#C01030" stroke-width="2" filter="url(#glow)"/>
+  <ellipse cx="38" cy="26" rx="8" ry="5" fill="rgba(255,255,255,0.3)" transform="rotate(-30, 38, 26)"/>
+</svg>

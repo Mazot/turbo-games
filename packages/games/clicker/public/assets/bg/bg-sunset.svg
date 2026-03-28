@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a0a2e"/>
+      <stop offset="40%" stop-color="#e74c3c"/>
+      <stop offset="70%" stop-color="#f39c12"/>
+      <stop offset="100%" stop-color="#ffd580"/>
+    </linearGradient>
+    <linearGradient id="ground" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2d1a0a"/>
+      <stop offset="100%" stop-color="#1a0a00"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- Sun -->
+  <circle cx="256" cy="340" r="60" fill="#FFD700" opacity="0.95"/>
+  <circle cx="256" cy="340" r="75" fill="#FF8C00" opacity="0.3"/>
+  <circle cx="256" cy="340" r="92" fill="#FF6347" opacity="0.15"/>
+  <!-- Horizon reflection -->
+  <ellipse cx="256" cy="370" rx="180" ry="8" fill="#FFD700" opacity="0.3"/>
+  <!-- Ground/silhouette -->
+  <rect x="0" y="400" width="512" height="112" fill="url(#ground)"/>
+  <!-- Tree silhouettes -->
+  <rect x="40" y="340" width="8" height="70" fill="#1a0a00"/>
+  <polygon points="44,280 20,360 68,360" fill="#1a0a00"/>
+  <polygon points="44,310 15,375 73,375" fill="#1a0a00"/>
+  <rect x="440" y="350" width="8" height="60" fill="#1a0a00"/>
+  <polygon points="444,295 420,365 468,365" fill="#1a0a00"/>
+  <polygon points="444,320 415,378 473,378" fill="#1a0a00"/>
+  <!-- Clouds -->
+  <ellipse cx="120" cy="120" rx="60" ry="18" fill="rgba(255,100,50,0.4)"/>
+  <ellipse cx="380" cy="90" rx="50" ry="14" fill="rgba(255,80,30,0.35)"/>
+</svg>

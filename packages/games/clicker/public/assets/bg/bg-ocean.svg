@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1a4a7a"/>
+      <stop offset="100%" stop-color="#6dd5fa"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#2980b9"/>
+      <stop offset="100%" stop-color="#1a3a5c"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <!-- Sun reflection on water -->
+  <rect x="0" y="280" width="512" height="232" fill="url(#sea)"/>
+  <!-- Horizon line -->
+  <rect x="0" y="278" width="512" height="4" fill="rgba(255,255,255,0.2)"/>
+  <!-- Sun -->
+  <circle cx="256" cy="180" r="45" fill="#fff" opacity="0.9"/>
+  <circle cx="256" cy="180" r="60" fill="#fffde0" opacity="0.25"/>
+  <!-- Clouds -->
+  <ellipse cx="100" cy="100" rx="70" ry="20" fill="rgba(255,255,255,0.75)"/>
+  <ellipse cx="90" cy="95" rx="40" ry="18" fill="rgba(255,255,255,0.85)"/>
+  <ellipse cx="380" cy="130" rx="60" ry="16" fill="rgba(255,255,255,0.7)"/>
+  <ellipse cx="390" cy="125" rx="35" ry="14" fill="rgba(255,255,255,0.8)"/>
+  <!-- Waves -->
+  <path d="M0,310 Q64,300 128,310 Q192,320 256,310 Q320,300 384,310 Q448,320 512,310" stroke="rgba(255,255,255,0.25)" stroke-width="2" fill="none"/>
+  <path d="M0,340 Q64,330 128,340 Q192,350 256,340 Q320,330 384,340 Q448,350 512,340" stroke="rgba(255,255,255,0.2)" stroke-width="2" fill="none"/>
+  <path d="M0,370 Q64,360 128,370 Q192,380 256,370 Q320,360 384,370 Q448,380 512,370" stroke="rgba(255,255,255,0.15)" stroke-width="2" fill="none"/>
+  <!-- Sun reflection on water -->
+  <ellipse cx="256" cy="370" rx="20" ry="80" fill="rgba(255,255,200,0.15)"/>
+</svg>
