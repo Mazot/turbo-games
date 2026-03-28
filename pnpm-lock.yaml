@@ -104,6 +104,37 @@ importers:
         specifier: ^6.3.0
         version: 6.4.1
 
+  packages/games/pixel-path:
+    dependencies:
+      '@turbo-games/ads':
+        specifier: workspace:*
+        version: link:../../core/ads
+      '@turbo-games/audio':
+        specifier: workspace:*
+        version: link:../../core/audio
+      '@turbo-games/events':
+        specifier: workspace:*
+        version: link:../../core/events
+      '@turbo-games/physics':
+        specifier: workspace:*
+        version: link:../../core/physics
+      '@turbo-games/renderer':
+        specifier: workspace:*
+        version: link:../../core/renderer
+      three:
+        specifier: ^0.183.2
+        version: 0.183.2
+    devDependencies:
+      '@types/three':
+        specifier: ^0.183.1
+        version: 0.183.1
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.2
+      vite:
+        specifier: ^6.3.0
+        version: 6.4.1
+
 packages:
 
   '@colyseus/schema@2.0.37':
