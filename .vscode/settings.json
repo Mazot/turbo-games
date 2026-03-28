@@ -1,0 +1,8 @@
+{
+  "chat.tools.terminal.autoApprove": {
+    "/^pnpm -r --parallel dev$/": {
+      "approve": true,
+      "matchCommandLine": true
+    }
+  }
+}

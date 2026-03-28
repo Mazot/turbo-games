@@ -1,0 +1,48 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "clicker (vite)",
+      "cwd": "packages/games/clicker",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 5173
+    },
+    {
+      "name": "watch: renderer",
+      "cwd": "packages/core/renderer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    },
+    {
+      "name": "watch: ads",
+      "cwd": "packages/core/ads",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    },
+    {
+      "name": "watch: events",
+      "cwd": "packages/core/events",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    },
+    {
+      "name": "watch: audio",
+      "cwd": "packages/core/audio",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    },
+    {
+      "name": "watch: physics",
+      "cwd": "packages/core/physics",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    },
+    {
+      "name": "watch: multiplayer",
+      "cwd": "packages/core/multiplayer",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"]
+    }
+  ]
+}

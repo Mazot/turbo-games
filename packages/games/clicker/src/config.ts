@@ -12,12 +12,12 @@ export interface BackgroundAssetConfig {
 }
 
 export const ASSETS: AssetConfig[] = [
-  { name: 'Star', image: '/assets/star.svg', cost: 0, pointsPerClick: 1 },
-  { name: 'Diamond', image: '/assets/diamond.svg', cost: 100, pointsPerClick: 2 },
-  { name: 'Heart', image: '/assets/heart.svg', cost: 500, pointsPerClick: 5 },
-  { name: 'Crown', image: '/assets/crown.svg', cost: 2_000, pointsPerClick: 12 },
-  { name: 'Crystal', image: '/assets/crystal.svg', cost: 10_000, pointsPerClick: 30 },
-  { name: 'Superstar', image: '/assets/superstar.svg', cost: 50_000, pointsPerClick: 80 },
+  { name: 'Star', image: '/assets/char/wolf_1.png', cost: 0, pointsPerClick: 1 },
+  { name: 'Diamond', image: '/assets/char/wolf_2.png', cost: 100, pointsPerClick: 2 },
+  { name: 'Heart', image: '/assets/char/wolf_3.png', cost: 500, pointsPerClick: 5 },
+  { name: 'Crown', image: '/assets/char/wolf_4.png', cost: 2_000, pointsPerClick: 12 },
+  { name: 'Crystal', image: '/assets/char/wolf_5.png', cost: 10_000, pointsPerClick: 30 },
+  { name: 'Superstar', image: '/assets/char/wolf_6.png', cost: 50_000, pointsPerClick: 80 },
 ];
 
 export const BACKGROUNDS_ASSETS: BackgroundAssetConfig[] = [
