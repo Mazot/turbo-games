@@ -2,6 +2,22 @@
 
 A top-down arena survival game inspired by Brotato, built with the turbo-games framework.
 
+## ⚠️ Current Status
+
+**The game structure is complete but requires TypeScript fixes to compile.**
+
+All core systems are implemented:
+- ✅ Character movement and animation system
+- ✅ Wave-based enemy spawning
+- ✅ Auto-targeting weapon system
+- ✅ Upgrade system between waves
+- ✅ UI (HUD, upgrades, game over)
+- ✅ Dev tools (cheats, level editor, configurator)
+- ✅ Full configuration system
+- ⚠️ TypeScript compilation needs fixes for kvy-core feature system compatibility
+
+The features need refactoring to work with kvy-core's API which doesn't support constructor parameters for Object3DFeature classes.
+
 ## Features
 
 - **Wave-based survival gameplay**: Fight increasingly difficult waves of enemies

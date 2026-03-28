@@ -2,7 +2,9 @@ export interface GameEvents {
   'game:start': () => void;
   'game:pause': () => void;
   'game:resume': () => void;
+  'game:stop': () => void;
   'game:over': () => void;
+  'game:error': (error: Error) => void;
   'wave:start': (waveNumber: number) => void;
   'wave:complete': (waveNumber: number) => void;
   'enemy:spawn': (enemyId: string) => void;
