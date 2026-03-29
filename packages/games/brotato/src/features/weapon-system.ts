@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 import { Object3DFeature, CoreContext } from '@turbo-games/renderer';
+import type { ModulesRecord } from '@turbo-games/renderer';
 import type { WeaponConfig } from '../types';
 
-export class Projectile extends Object3DFeature {
+export class Projectile extends Object3DFeature<ModulesRecord> {
+  onHit: ((enemy: THREE.Object3D, damage: number) => boolean) | null = null;
+  onRemove: (() => void) | null = null;
+
   private _velocity = new THREE.Vector2();
-  private _damage: number;
-  private _piercing: number;
+  private _damage = 0;
+  private _piercing = 0;
   private _hitCount = 0;
   private _lifetime = 0;
   private _maxLifetime = 5;
 
-  onHit: ((enemy: THREE.Object3D, damage: number) => boolean) | null = null;
-  onDestroy: (() => void) | null = null;
-
-  constructor(damage: number, piercing: number, direction: THREE.Vector2, speed: number) {
-    super();
+  setup(damage: number, piercing: number, direction: THREE.Vector2, speed: number): void {
     this._damage = damage;
     this._piercing = piercing;
     this._velocity.copy(direction).normalize().multiplyScalar(speed);
@@ -31,20 +31,20 @@ export class Projectile extends Object3DFeature {
   registerHit(): void {
     this._hitCount++;
     if (this._hitCount > this._piercing) {
-      this.onDestroy?.();
+      this.onRemove?.();
     }
   }
 
-  protected useCtx(ctx: CoreContext): () => void {
+  protected useCtx(_ctx: CoreContext<ModulesRecord>) {
     return () => {};
   }
 
-  onBeforeRender(ctx: CoreContext): void {
+  onBeforeRender(ctx: CoreContext<ModulesRecord>): void {
     if (!this.hasCtx) return;
 
     this._lifetime += ctx.deltaTime;
     if (this._lifetime >= this._maxLifetime) {
-      this.onDestroy?.();
+      this.onRemove?.();
       return;
     }
 
@@ -53,13 +53,14 @@ export class Projectile extends Object3DFeature {
   }
 }
 
-export class WeaponSystem extends Object3DFeature {
+export class WeaponSystem extends Object3DFeature<ModulesRecord> {
+  onFireProjectile: ((weapon: WeaponConfig, direction: THREE.Vector2) => void) | null = null;
+
   private _weapons: WeaponConfig[] = [];
   private _cooldowns: number[] = [];
   private _target: THREE.Object3D | null = null;
   private _enemies: THREE.Object3D[] = [];
-
-  onFireProjectile: ((weapon: WeaponConfig, direction: THREE.Vector2) => void) | null = null;
+  private _direction = new THREE.Vector2();
 
   addWeapon(weapon: WeaponConfig): void {
     this._weapons.push(weapon);
@@ -79,11 +80,11 @@ export class WeaponSystem extends Object3DFeature {
     this._enemies = enemies;
   }
 
-  protected useCtx(ctx: CoreContext): () => void {
+  protected useCtx(_ctx: CoreContext<ModulesRecord>) {
     return () => {};
   }
 
-  onBeforeRender(ctx: CoreContext): void {
+  onBeforeRender(ctx: CoreContext<ModulesRecord>): void {
     if (!this.hasCtx || !this._target || this._enemies.length === 0) return;
 
     for (let i = 0; i < this._weapons.length; i++) {
@@ -99,8 +100,8 @@ export class WeaponSystem extends Object3DFeature {
           const distance = Math.sqrt(dx * dx + dy * dy);
 
           if (distance <= weapon.range) {
-            const direction = new THREE.Vector2(dx, dy);
-            this.onFireProjectile?.(weapon, direction);
+            this._direction.set(dx, dy);
+            this.onFireProjectile?.(weapon, this._direction);
             this._cooldowns[i] = 1 / weapon.attackSpeed;
           }
         }

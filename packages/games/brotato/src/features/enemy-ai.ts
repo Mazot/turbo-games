@@ -1,21 +1,21 @@
 import * as THREE from 'three';
 import { Object3DFeature, CoreContext } from '@turbo-games/renderer';
+import type { ModulesRecord } from '@turbo-games/renderer';
+import type { SpriteAnimator } from '@turbo-games/renderer';
 import type { EnemyConfig } from '../types';
-import { SpriteAnimator } from './sprite-animator';
 
-export class EnemyAI extends Object3DFeature {
-  private _config: EnemyConfig;
-  private _hp: number;
+export class EnemyAI extends Object3DFeature<ModulesRecord> {
+  onDeath: ((gold: number, xp: number) => void) | null = null;
+  onAttack: ((damage: number) => void) | null = null;
+
+  private _config: EnemyConfig | null = null;
+  private _hp = 0;
   private _target: THREE.Object3D | null = null;
   private _animator: SpriteAnimator | null = null;
   private _velocity = new THREE.Vector2();
   private _attackCooldown = 0;
 
-  onDeath: ((gold: number, xp: number) => void) | null = null;
-  onAttack: ((damage: number) => void) | null = null;
-
-  constructor(config: EnemyConfig) {
-    super();
+  setConfig(config: EnemyConfig): void {
     this._config = config;
     this._hp = config.hp;
   }
@@ -29,6 +29,7 @@ export class EnemyAI extends Object3DFeature {
   }
 
   takeDamage(damage: number): boolean {
+    if (!this._config) return false;
     this._hp -= damage;
     if (this._hp <= 0) {
       this.onDeath?.(this._config.goldDrop, this._config.xpDrop);
@@ -42,15 +43,15 @@ export class EnemyAI extends Object3DFeature {
   }
 
   getMaxHp(): number {
-    return this._config.hp;
+    return this._config?.hp ?? 0;
   }
 
-  protected useCtx(ctx: CoreContext): () => void {
+  protected useCtx(_ctx: CoreContext<ModulesRecord>) {
     return () => {};
   }
 
-  onBeforeRender(ctx: CoreContext): void {
-    if (!this.hasCtx || !this._target) return;
+  onBeforeRender(ctx: CoreContext<ModulesRecord>): void {
+    if (!this.hasCtx || !this._target || !this._config) return;
 
     this._attackCooldown = Math.max(0, this._attackCooldown - ctx.deltaTime);
 

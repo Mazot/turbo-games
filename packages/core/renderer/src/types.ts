@@ -17,3 +17,13 @@ export interface RendererConfig {
   /** Modules to register on the CoreContext */
   modules?: KVY.ModulesRecord;
 }
+
+export interface AnimationFrames {
+  frames: number[];
+  frameRate: number;
+  loop: boolean;
+}
+
+export interface AnimationConfig {
+  [name: string]: AnimationFrames;
+}

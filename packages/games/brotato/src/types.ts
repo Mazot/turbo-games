@@ -1,3 +1,7 @@
+import type { AnimationConfig, AnimationFrames } from '@turbo-games/renderer';
+
+export type { AnimationConfig, AnimationFrames };
+
 export interface GameEvents {
   'game:start': () => void;
   'game:pause': () => void;
@@ -47,20 +51,6 @@ export interface CharacterConfig {
   spriteAtlas: string;
   animations: AnimationConfig;
   baseStats: CharacterStats;
-}
-
-export interface AnimationConfig {
-  idle: AnimationFrames;
-  walk: AnimationFrames;
-  attack?: AnimationFrames;
-  hurt?: AnimationFrames;
-  death?: AnimationFrames;
-}
-
-export interface AnimationFrames {
-  frames: number[];
-  frameRate: number;
-  loop: boolean;
 }
 
 export interface EnemyConfig {

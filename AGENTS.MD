@@ -26,7 +26,8 @@ turbo-games/
     │   ├── ads/                # @turbo-games/ads
     │   └── multiplayer/        # @turbo-games/multiplayer
     └── games/
-        └── clicker/            # @turbo-games/clicker — tap/click idle game
+        ├── clicker/            # @turbo-games/clicker — tap/click idle game
+        └── brotato/            # @turbo-games/brotato — arena survival game
 ```
 
 ## Core Packages
@@ -37,6 +38,8 @@ turbo-games/
 
 - **Main class**: `GameRenderer<TModules>` — wrapper over `KVY.CoreContext`. Created via the async factory `GameRenderer.create(config)`.
 - **Architecture**: kvy-core — component-oriented system. `Object3DFeature` — behaviors attached to objects, `CoreContextModule` — global services. Context propagates automatically through the scene hierarchy.
+- **Features**: `SpriteAnimator` — sprite sheet animation feature. Call `setup(animations, spriteSheet, framesX, framesY)` then `playAnimation(name)`.
+- **Types**: `AnimationConfig`, `AnimationFrames` — reusable animation data types for sprite sheets.
 - **Re-exports from kvy-core**: `CoreContext`, `CoreContextModule`, `Object3DFeature`, `addFeature`, `getFeature`, `getFeatureBy`, `getFeatures`, `clear`, `KeysInput`, `ModulesRecord`.
 - **Deps**: `three` ^0.183, `@vladkrutenyuk/three-kvy-core` ^2.3.8, `eventemitter3` ^5.0.
 
@@ -133,6 +136,7 @@ You are a seasoned game developer (3D games) with extensive experience in **web 
 
 ### Code Quality
 
+- Always write explanatory comments for all classes, methods, and functions. Describe what it does, not how — focus on intent, inputs, outputs, and side effects.
 - Use `@turbo-games/*` packages for shared functionality. Do not write custom implementations of features that belong in core packages.
 - If a required feature is missing from core, add it to the appropriate core package.
 - Write clean, readable TypeScript. Prefer clarity over cleverness.
@@ -208,6 +212,19 @@ Tap/click idle game. A 3D sprite is displayed in the center; clicking it awards 
 - **State**: `GameState` — score, combo, selected asset/background.
 - **UI**: `GameUI` (HUD + floating text), `ConfiguratorPanel` (dev/demo panel).
 - **Deps**: `@turbo-games/renderer`, `@turbo-games/events`, `@turbo-games/ads`, `three`.
+- **Build**: Vite (`vite.config.ts`), `tsc` type-check only (`noEmit: true`).
+
+### brotato (`packages/games/brotato`)
+
+Arena survival game (Brotato clone). Wave-based enemy spawning, auto-targeting weapons, upgrade system between waves.
+
+- **Entry**: `src/main.ts` — bootstraps `GameRenderer` with `KeysInput` module, creates player sprite, wave system, weapon system.
+- **Features**: `PlayerController` (WASD movement), `EnemyAI` (chase + attack), `WeaponSystem` (auto-targeting), `Projectile` (projectile movement + collision).
+- **Systems**: `WaveSystem` (wave-based spawning), `UpgradeSystem` (randomized upgrades between waves).
+- **Config**: `config/characters.ts`, `config/enemies.ts`, `config/weapons.ts`, `config/items.ts`, `config/levels.ts` — all data-driven.
+- **State**: `GameState` — HP, gold, equipped weapons, inventory, localStorage save/load.
+- **UI**: `GameUI` (HUD + upgrades + game over), `CheatsPanel` (dev cheats), `LevelEditor` (F1), `ConfiguratorPanel` (F2).
+- **Deps**: `@turbo-games/renderer`, `@turbo-games/events`, `@turbo-games/audio`, `@turbo-games/physics`, `three`.
 - **Build**: Vite (`vite.config.ts`), `tsc` type-check only (`noEmit: true`).
 
 ## MCP (Model Context Protocol)

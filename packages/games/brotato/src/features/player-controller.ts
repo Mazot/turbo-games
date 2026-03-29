@@ -1,18 +1,22 @@
 import * as THREE from 'three';
 import { Object3DFeature, CoreContext, KeysInput } from '@turbo-games/renderer';
+import type { ModulesRecord } from '@turbo-games/renderer';
+import type { SpriteAnimator } from '@turbo-games/renderer';
 import type { CharacterStats } from '../types';
-import { SpriteAnimator } from './sprite-animator';
 
-export class PlayerController extends Object3DFeature {
-  private _stats: CharacterStats;
+interface InputModules extends ModulesRecord {
+  keys: KeysInput;
+}
+
+export class PlayerController extends Object3DFeature<InputModules> {
+  onTakeDamage: ((damage: number) => void) | null = null;
+
+  private _stats: CharacterStats | null = null;
   private _animator: SpriteAnimator | null = null;
   private _velocity = new THREE.Vector2();
   private _moveSpeed = 0;
 
-  onTakeDamage: ((damage: number) => void) | null = null;
-
-  constructor(stats: CharacterStats) {
-    super();
+  setStats(stats: CharacterStats): void {
     this._stats = stats;
     this._moveSpeed = stats.speed;
   }
@@ -26,32 +30,32 @@ export class PlayerController extends Object3DFeature {
     this._moveSpeed = stats.speed;
   }
 
-  getStats(): CharacterStats {
+  getStats(): CharacterStats | null {
     return this._stats;
   }
 
-  protected useCtx(ctx: CoreContext): () => void {
+  protected useCtx(_ctx: CoreContext<InputModules>) {
     return () => {};
   }
 
-  onBeforeRender(ctx: CoreContext): void {
-    if (!this.hasCtx) return;
+  onBeforeRender(ctx: CoreContext<InputModules>): void {
+    if (!this.hasCtx || !this._stats) return;
 
-    const keys = ctx.get(KeysInput);
+    const keys = ctx.modules.keys;
     if (!keys) return;
 
     this._velocity.set(0, 0);
 
-    if (keys.isDown('KeyW') || keys.isDown('ArrowUp')) {
+    if (keys.has('KeyW') || keys.has('ArrowUp')) {
       this._velocity.y += 1;
     }
-    if (keys.isDown('KeyS') || keys.isDown('ArrowDown')) {
+    if (keys.has('KeyS') || keys.has('ArrowDown')) {
       this._velocity.y -= 1;
     }
-    if (keys.isDown('KeyA') || keys.isDown('ArrowLeft')) {
+    if (keys.has('KeyA') || keys.has('ArrowLeft')) {
       this._velocity.x -= 1;
     }
-    if (keys.isDown('KeyD') || keys.isDown('ArrowRight')) {
+    if (keys.has('KeyD') || keys.has('ArrowRight')) {
       this._velocity.x += 1;
     }
 

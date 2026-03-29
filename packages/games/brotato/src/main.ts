@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { GameRenderer, addFeature, Object3DFeature, CoreContext } from '@turbo-games/renderer';
+import { GameRenderer, addFeature, Object3DFeature, CoreContext, KeysInput } from '@turbo-games/renderer';
+import type { ModulesRecord } from '@turbo-games/renderer';
 import { AudioManager } from '@turbo-games/audio';
 import { GameState } from './game-state';
 import { GameUI } from './ui/game-ui';
@@ -8,7 +9,6 @@ import { LevelEditor } from './ui/level-editor';
 import { ConfiguratorPanel } from './ui/configurator-panel';
 import { PlayerController } from './features/player-controller';
 import { EnemyAI } from './features/enemy-ai';
-import { SpriteAnimator } from './features/sprite-animator';
 import { WeaponSystem, Projectile } from './features/weapon-system';
 import { WaveSystem } from './systems/wave-system';
 import { UpgradeSystem } from './systems/upgrade-system';
@@ -25,6 +25,7 @@ async function main() {
   const game = await GameRenderer.create({
     container,
     fov: 60,
+    modules: { keys: new KeysInput() },
   });
 
   game.camera.position.set(0, 0, 15);
@@ -70,7 +71,7 @@ async function main() {
     PlayerController as Parameters<typeof addFeature>[1]
   ) as unknown as PlayerController;
 
-  playerController.updateStats(state.stats);
+  playerController.setStats(state.stats);
   playerController.onTakeDamage = (damage) => {
     const died = state.takeDamage(damage);
     ui.updateHP(state.stats.hp, state.stats.maxHp);
@@ -122,6 +123,7 @@ async function main() {
       EnemyAI as Parameters<typeof addFeature>[1]
     ) as unknown as EnemyAI;
 
+    enemyAI.setConfig(enemyConfig);
     enemyAI.setTarget(playerSprite);
     enemyAI.onDeath = (gold, xp) => {
       removeEnemy(enemySprite);
@@ -166,14 +168,17 @@ async function main() {
 
     const projectile = addFeature(
       projectileSprite,
-      Projectile as Parameters<typeof addFeature>[1],
+      Projectile as Parameters<typeof addFeature>[1]
+    ) as unknown as Projectile;
+
+    projectile.setup(
       actualDamage,
       weapon.piercing + stats.piercing,
       direction,
-      weapon.projectileSpeed + stats.projectileSpeed
-    ) as unknown as Projectile;
+      weapon.projectileSpeed + stats.projectileSpeed,
+    );
 
-    projectile.onDestroy = () => {
+    projectile.onRemove = () => {
       const idx = projectiles.indexOf(projectileSprite);
       if (idx !== -1) {
         projectiles.splice(idx, 1);
@@ -227,10 +232,10 @@ async function main() {
     }
   }
 
-  class GameLoop extends Object3DFeature {
+  class GameLoop extends Object3DFeature<ModulesRecord> {
     private _regenTimer = 0;
 
-    onBeforeRender(ctx: CoreContext): void {
+    onBeforeRender(ctx: CoreContext<ModulesRecord>): void {
       weaponSystem.updateEnemies(enemies);
       checkCollisions();
       waveSystem.update(enemies.length);
