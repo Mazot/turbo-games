@@ -1,5 +1,6 @@
 export { GameRenderer } from './game-renderer';
-export type { RendererConfig } from './types';
+export { SpriteAnimator } from './sprite-animator';
+export type { RendererConfig, AnimationConfig, AnimationFrames } from './types';
 
 // Re-export kvy-core essentials for convenience
 export {
