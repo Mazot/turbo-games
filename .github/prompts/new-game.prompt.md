@@ -25,6 +25,8 @@ Create a new game package at `packages/games/{{game-name}}/` following the turbo
   "dependencies": {
     "@turbo-games/renderer": "workspace:*",
     "@turbo-games/events": "workspace:*",
+    "@turbo-games/ads": "workspace:*",
+    "@turbo-games/analytics": "workspace:*",
     "three": "^0.183.2"
   },
   "devDependencies": {
@@ -35,7 +37,7 @@ Create a new game package at `packages/games/{{game-name}}/` following the turbo
 }
 ```
 
-Add other `@turbo-games/*` packages (physics, audio, ads, multiplayer) only if the game description requires them.
+Add other `@turbo-games/*` packages (physics, audio, multiplayer) only if the game description requires them. `@turbo-games/ads` and `@turbo-games/analytics` are **always** included — every game must integrate the ads and analytics SDKs.
 
 ### 2. `tsconfig.json`
 
@@ -64,6 +66,8 @@ Minimal HTML with `<div id="root">` and `<script type="module" src="/src/main.ts
 
 - Bootstrap with `GameRenderer.create({ container, fov: 60 })`.
 - Set up camera at a sensible default position.
+- Create `AdManager` from `@turbo-games/ads` in the services section.
+- Create `AnalyticsManager` from `@turbo-games/analytics` in the services section.
 - Include the DEV-only Stats guard from AGENTS.md.
 - Add a placeholder scene object so the game renders something immediately.
 - Call `main()` and catch errors to console.

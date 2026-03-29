@@ -23,7 +23,10 @@ async function main() {
   game.camera.position.set(0, 0, 5);
   game.camera.lookAt(0, 0, 0);
 
-  // 4. Services and state
+  // 4. Services and state (AdManager & AnalyticsManager are mandatory)
+  const adManager = new AdManager();
+  const analytics = new AnalyticsManager();
+
   // 5. Scene objects + features
   // 6. UI
   // 7. DEV-only tools
@@ -86,6 +89,32 @@ clickTarget.onClicked = () => { ... };
 // ❌ — type error in TS6 strict mode
 const clickTarget = addFeature(sprite, ClickTarget);
 ```
+
+## Ads SDK is mandatory
+
+Every game must import and instantiate `AdManager` from `@turbo-games/ads`. Create it in the "Services and state" section of `main()`:
+
+```ts
+import { AdManager } from '@turbo-games/ads';
+
+// inside main():
+const adManager = new AdManager();
+```
+
+`@turbo-games/ads` must always be listed in the game's `package.json` dependencies.
+
+## Analytics SDK is mandatory
+
+Every game must import and instantiate `AnalyticsManager` from `@turbo-games/analytics`. Create it in the "Services and state" section of `main()`:
+
+```ts
+import { AnalyticsManager } from '@turbo-games/analytics';
+
+// inside main():
+const analytics = new AnalyticsManager();
+```
+
+`@turbo-games/analytics` must always be listed in the game's `package.json` dependencies.
 
 ## No feature or game logic in `main()`
 

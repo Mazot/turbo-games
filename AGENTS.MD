@@ -24,7 +24,8 @@ turbo-games/
     │   ├── audio/              # @turbo-games/audio
     │   ├── events/             # @turbo-games/events
     │   ├── ads/                # @turbo-games/ads
-    │   └── multiplayer/        # @turbo-games/multiplayer
+    │   ├── multiplayer/        # @turbo-games/multiplayer
+    │   └── analytics/          # @turbo-games/analytics
     └── games/
         ├── clicker/            # @turbo-games/clicker — tap/click idle game
         └── brotato/            # @turbo-games/brotato — arena survival game
@@ -81,6 +82,14 @@ Multiplayer client built on Colyseus.
 
 - **Main class**: `MultiplayerClient` — `joinOrCreate`, `join`, `create`, `getRoom`, `leave`, `dispose`.
 - **Deps**: `colyseus.js` ^0.15.
+
+### @turbo-games/analytics
+
+Analytics manager with platform providers. Google Analytics 4 (gtag.js) provider included.
+
+- **Main class**: `AnalyticsManager` — `setProvider`, `trackEvent`, `trackScreenView`, `setUserProperty`, `destroy`.
+- **Providers**: `GoogleAnalyticsProvider` — loads gtag.js, sends events to GA4.
+- **Deps**: none (zero runtime deps; gtag.js loaded via script tag).
 
 ## Conventions
 
