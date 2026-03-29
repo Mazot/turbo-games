@@ -1,5 +1,5 @@
 {
-  "name": "@turbo-games/physics",
+  "name": "@turbo-games/object-pool",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -16,15 +16,7 @@
     "dev": "tsc --watch",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "@dimforge/rapier3d-compat": "^0.14.0",
-    "@vladkrutenyuk/three-kvy-core": "^2.3.8"
-  },
-  "peerDependencies": {
-    "three": "^0.183.0"
-  },
   "devDependencies": {
-    "@types/three": "^0.183.1",
     "typescript": "^6.0.0"
   }
 }

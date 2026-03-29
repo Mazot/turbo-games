@@ -14,6 +14,10 @@ export interface RendererConfig {
   near?: number;
   /** Camera far plane, default 1000 */
   far?: number;
+  /** Device pixel ratio override, default window.devicePixelRatio */
+  pixelRatio?: number;
+  /** Automatically resize when the container changes size, default true */
+  autoResize?: boolean;
   /** Modules to register on the CoreContext */
   modules?: KVY.ModulesRecord;
 }

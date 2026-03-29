@@ -1,5 +1,5 @@
 export { createPhysicsModule, RAPIER } from './physics-world';
-export type { PhysicsConfig } from './types';
+export type { PhysicsConfig, CollisionEvent, CollisionListener } from './types';
 
 // Re-export kvy-core Rapier addon features
 export {

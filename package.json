@@ -1,11 +1,35 @@
 {
   "name": "turbo-games",
   "private": true,
+  "type": "module",
   "packageManager": "pnpm@10.7.0",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
-    "lint": "pnpm -r lint",
-    "clean": "pnpm -r clean"
+    "lint": "eslint 'packages/**/*.ts'",
+    "lint:fix": "eslint 'packages/**/*.ts' --fix",
+    "format": "prettier --write 'packages/**/*.ts'",
+    "format:check": "prettier --check 'packages/**/*.ts'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "pnpm -r clean",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.1.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.4.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
+    "typescript-eslint": "^8.57.2",
+    "vitest": "^4.1.2"
+  },
+  "lint-staged": {
+    "packages/**/*.ts": [
+      "eslint --fix",
+      "prettier --write"
+    ]
   }
 }

@@ -15,9 +15,12 @@ turbo-games/
 ├── package.json                # root workspace
 ├── pnpm-workspace.yaml         # packages/core/* + packages/games/*
 ├── tsconfig.base.json          # shared TS config
+├── scripts/
+│   └── create-game.js          # game scaffolder script
 ├── .vscode/
 │   └── mcp.json                # MCP server config
 └── packages/
+    ├── shared-vite-config.ts   # shared Vite config factory for games
     ├── core/
     │   ├── renderer/           # @turbo-games/renderer
     │   ├── physics/            # @turbo-games/physics
@@ -25,7 +28,11 @@ turbo-games/
     │   ├── events/             # @turbo-games/events
     │   ├── ads/                # @turbo-games/ads
     │   ├── multiplayer/        # @turbo-games/multiplayer
-    │   └── analytics/          # @turbo-games/analytics
+    │   ├── analytics/          # @turbo-games/analytics
+    │   ├── ui/                 # @turbo-games/ui
+    │   ├── state/              # @turbo-games/state
+    │   ├── math/               # @turbo-games/math
+    │   └── object-pool/        # @turbo-games/object-pool
     └── games/
         ├── clicker/            # @turbo-games/clicker — tap/click idle game
         └── brotato/            # @turbo-games/brotato — arena survival game
@@ -39,8 +46,11 @@ turbo-games/
 
 - **Main class**: `GameRenderer<TModules>` — wrapper over `KVY.CoreContext`. Created via the async factory `GameRenderer.create(config)`.
 - **Architecture**: kvy-core — component-oriented system. `Object3DFeature` — behaviors attached to objects, `CoreContextModule` — global services. Context propagates automatically through the scene hierarchy.
+- **Resize**: Auto-resize via `ResizeObserver` (enabled by default, disable with `autoResize: false`). Updates renderer size and camera aspect automatically.
+- **WebGL fallback**: If WebGPU initialization fails, automatically falls back to `WebGLRenderer` with a console warning.
 - **Features**: `SpriteAnimator` — sprite sheet animation feature. Call `setup(animations, spriteSheet, framesX, framesY)` then `playAnimation(name)`.
 - **Types**: `AnimationConfig`, `AnimationFrames` — reusable animation data types for sprite sheets.
+- **Config**: `RendererConfig` — `container`, `fov`, `near`, `far`, `antialias`, `forceWebGL`, `pixelRatio`, `autoResize`, `modules`.
 - **Re-exports from kvy-core**: `CoreContext`, `CoreContextModule`, `Object3DFeature`, `addFeature`, `getFeature`, `getFeatureBy`, `getFeatures`, `clear`, `KeysInput`, `ModulesRecord`.
 - **Deps**: `three` ^0.183, `@vladkrutenyuk/three-kvy-core` ^2.3.8, `eventemitter3` ^5.0.
 
@@ -48,9 +58,10 @@ turbo-games/
 
 Physics via Rapier (WASM) + kvy-core addon `RapierPhysics`.
 
-- **Factory**: `createPhysicsModule(config?)` — initializes Rapier WASM, returns a `RapierPhysics` module for `CoreContext`.
+- **Factory**: `createPhysicsModule(config?)` — initializes Rapier WASM, returns a `RapierPhysics` module for `CoreContext`. Throws descriptive error if WASM fails to load.
+- **Collision types**: `CollisionEvent`, `CollisionListener` — typed collision event interfaces for game logic.
 - **Re-exports from kvy-core addons**: `RapierPhysics`, `RapierDebugRenderer`, `Rigidbody`, `RigidbodyDynamic`, `RigidbodyFixed`, `RigidbodyKinematic`, `Collider`, `CuboidCollider`, `CapsuleCollider`, `BallCollider`, `ConeCollider`, `CylinderCollider`, `TrimeshCollider`, `ConvexMeshCollider`, `RAPIER`.
-- **Deps**: `@dimforge/rapier3d-compat` ^0.14, `@vladkrutenyuk/three-kvy-core` ^2.3.8.
+- **Deps**: `@dimforge/rapier3d-compat` ^0.14, `@vladkrutenyuk/three-kvy-core` ^2.3.8. **Peer**: `three` ^0.183.
 
 ### @turbo-games/audio
 
@@ -90,6 +101,36 @@ Analytics manager with platform providers. Google Analytics 4 (gtag.js) provider
 - **Main class**: `AnalyticsManager` — `setProvider`, `trackEvent`, `trackScreenView`, `setUserProperty`, `destroy`.
 - **Providers**: `GoogleAnalyticsProvider` — loads gtag.js, sends events to GA4.
 - **Deps**: none (zero runtime deps; gtag.js loaded via script tag).
+
+### @turbo-games/ui
+
+Shared DOM utilities and UI primitives for game overlays.
+
+- **Utilities**: `makeEl(tag, attrs?, children?)` — typed DOM element factory. `formatNumber(n)` — locale-aware number formatting. `injectCSS(id, css)` / `removeCSS(id)` — dynamic stylesheet management.
+- **ScreenManager**: `ScreenManager<T extends string>` — typed screen state machine with `show(screen)`, `onTransition(cb)` listener, and `current` getter.
+- **Panels**: `HudPanel` — base class for overlay UI panels. `DevPanel` — collapsible dev-only panel (toggle with hotkey).
+- **Deps**: none (zero runtime deps).
+
+### @turbo-games/state
+
+localStorage-backed game state persistence.
+
+- **Main class**: `SaveableState<T>` — abstract base. Subclass and implement `serialize()` / `deserialize()`. Provides `save()`, `load()`, `clearSave()`, `hasSave()`.
+- **Deps**: none (zero runtime deps).
+
+### @turbo-games/math
+
+Common math utilities for game logic.
+
+- **Functions**: `clamp`, `lerp`, `inverseLerp`, `remap`, `randomInRange`, `randomInt`, `randomFromArray`, `weightedRandom`, `distance2D`, `distanceSq2D`.
+- **Deps**: none (zero runtime deps).
+
+### @turbo-games/object-pool
+
+Generic object pool for reuse-heavy game patterns (projectiles, particles, enemies).
+
+- **Main class**: `ObjectPool<T extends Poolable>` — `acquire()`, `release(obj)`, `dispose()`. Objects must implement `Poolable` interface with `reset()`.
+- **Deps**: none (zero runtime deps).
 
 ## Conventions
 
@@ -205,11 +246,19 @@ if (import.meta.env.DEV) {
 
 ### Adding a New Game
 
-1. Create `packages/games/<name>/` with its own `package.json`.
-2. Add `@turbo-games/*` packages as workspace dependencies.
-3. Add `tsconfig.json` extending `../../tsconfig.base.json`.
-4. Use `GameRenderer.create()` as the entry point, register needed modules (physics, input, etc.).
-5. Implement game logic via `Object3DFeature` classes with kvy-core lifecycle.
+Run `node scripts/create-game.js <name>` to scaffold a new game, then `pnpm install`.
+
+The scaffolder creates `packages/games/<name>/` with:
+- `package.json` with common `@turbo-games/*` dependencies
+- `tsconfig.json` extending the root config
+- `vite.config.ts` using the shared Vite config factory
+- `index.html` with fullscreen root div
+- `src/main.ts` with `GameRenderer.create()` bootstrap and dev Stats
+
+Manual steps after scaffolding:
+1. Add game-specific core dependencies (physics, audio, etc.) if needed.
+2. Implement game logic via `Object3DFeature` classes with kvy-core lifecycle.
+3. Add config files under `src/config/` for balance data.
 
 ## Available Games
 
@@ -261,6 +310,11 @@ Chrome DevTools Protocol automation. Lets the agent open pages, click, fill form
 pnpm install              # install all deps
 pnpm -r build             # build all packages
 pnpm -r --parallel dev    # watch mode all packages
-pnpm -r lint              # lint all packages
-pnpm -r clean             # clean dist/
+pnpm lint                 # lint all packages (ESLint)
+pnpm lint:fix             # auto-fix lint issues
+pnpm format               # format all packages (Prettier)
+pnpm format:check         # check formatting (CI)
+pnpm test                 # run all tests (Vitest)
+pnpm test:watch           # watch mode tests
+pnpm clean                # clean dist/
 ```

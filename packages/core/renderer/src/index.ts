@@ -1,5 +1,12 @@
 export { GameRenderer } from './game-renderer';
 export { SpriteAnimator } from './sprite-animator';
+export {
+  addGameFeature,
+  loadTexture,
+  createImageTexture,
+  setTextureBackground,
+  setColorBackground,
+} from './helpers';
 export type { RendererConfig, AnimationConfig, AnimationFrames } from './types';
 
 // Re-export kvy-core essentials for convenience

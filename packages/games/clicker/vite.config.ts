@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import path from 'path';
 
 export default defineConfig({
+  base: '/turbo-games/',
   resolve: {
     alias: {
       '@turbo-games/renderer': path.resolve(__dirname, '../../core/renderer/src'),
