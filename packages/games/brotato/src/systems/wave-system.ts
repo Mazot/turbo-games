@@ -1,4 +1,5 @@
 import type { WaveConfig, EnemyConfig } from '../types';
+import { weightedRandom } from '@turbo-games/math';
 import { ENEMIES } from '../config/enemies';
 
 export class WaveSystem {
@@ -76,16 +77,14 @@ export class WaveSystem {
   }
 
   private _selectRandomEnemy(wave: WaveConfig): EnemyConfig | null {
-    const totalWeight = wave.enemyWeights.reduce((a, b) => a + b, 0);
-    let random = Math.random() * totalWeight;
+    const items = wave.enemyTypes.map((id, i) => ({
+      id,
+      weight: wave.enemyWeights[i] ?? 0,
+    }));
 
-    for (let i = 0; i < wave.enemyTypes.length; i++) {
-      random -= wave.enemyWeights[i];
-      if (random <= 0) {
-        return ENEMIES.find((e) => e.id === wave.enemyTypes[i]) ?? null;
-      }
-    }
+    const selected = weightedRandom(items);
+    if (!selected) return null;
 
-    return ENEMIES.find((e) => e.id === wave.enemyTypes[0]) ?? null;
+    return ENEMIES.find((e) => e.id === selected.id) ?? null;
   }
 }

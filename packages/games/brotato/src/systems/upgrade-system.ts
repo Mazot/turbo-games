@@ -1,4 +1,5 @@
 import type { UpgradeOption, ItemConfig, WeaponConfig } from '../types';
+import { randomFromArray } from '@turbo-games/math';
 import { ITEMS } from '../config/items';
 import { WEAPONS } from '../config/weapons';
 
@@ -54,7 +55,7 @@ export class UpgradeSystem {
 
     if (availableItems.length === 0) return null;
 
-    const item = availableItems[Math.floor(Math.random() * availableItems.length)];
+    const item = randomFromArray(availableItems)!;
     const rarity = this._tierToRarity(item.tier);
 
     return {
@@ -69,7 +70,7 @@ export class UpgradeSystem {
     const availableWeapons = WEAPONS.filter((w) => !usedIds.has(w.id));
     if (availableWeapons.length === 0) return null;
 
-    const weapon = availableWeapons[Math.floor(Math.random() * availableWeapons.length)];
+    const weapon = randomFromArray(availableWeapons)!;
 
     return {
       id: `weapon_${weapon.id}`,
@@ -90,7 +91,7 @@ export class UpgradeSystem {
       { stat: 'range' as const, value: 1, label: 'Range +1' },
     ];
 
-    const selected = stats[Math.floor(Math.random() * stats.length)];
+    const selected = randomFromArray(stats)!;
 
     return {
       id: `stat_${selected.stat}_${Math.random()}`,

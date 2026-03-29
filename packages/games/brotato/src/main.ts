@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { GameRenderer, addFeature, Object3DFeature, CoreContext, KeysInput } from '@turbo-games/renderer';
-import type { ModulesRecord } from '@turbo-games/renderer';
+import { GameRenderer, addGameFeature, setTextureBackground, Object3DFeature, KeysInput } from '@turbo-games/renderer';
+import type { ModulesRecord , CoreContext} from '@turbo-games/renderer';
+import { AdManager } from '@turbo-games/ads';
+import { AnalyticsManager } from '@turbo-games/analytics';
 import { AudioManager } from '@turbo-games/audio';
 import { GameState } from './game-state';
 import { GameUI } from './ui/game-ui';
@@ -13,7 +15,6 @@ import { WeaponSystem, Projectile } from './features/weapon-system';
 import { WaveSystem } from './systems/wave-system';
 import { UpgradeSystem } from './systems/upgrade-system';
 import { CHARACTERS } from './config/characters';
-import { ENEMIES } from './config/enemies';
 import { WEAPONS } from './config/weapons';
 import { ITEMS } from './config/items';
 import { LEVELS } from './config/levels';
@@ -32,6 +33,8 @@ async function main() {
   game.camera.lookAt(0, 0, 0);
 
   const state = new GameState();
+  const adManager = new AdManager();
+  const analytics = new AnalyticsManager();
   const audioManager = new AudioManager();
   const ui = new GameUI(state);
 
@@ -39,22 +42,7 @@ async function main() {
   const waveSystem = new WaveSystem(level.waves);
   const upgradeSystem = new UpgradeSystem();
 
-  const bgTexture = new THREE.TextureLoader().load(
-    '/assets/bg/forest.png',
-    () => {},
-    undefined,
-    () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 800;
-      canvas.height = 600;
-      const ctx = canvas.getContext('2d')!;
-      ctx.fillStyle = '#1a1a2e';
-      ctx.fillRect(0, 0, 800, 600);
-      const fallbackTexture = new THREE.CanvasTexture(canvas);
-      game.scene.background = fallbackTexture;
-    }
-  );
-  game.scene.background = bgTexture;
+  await setTextureBackground(game.scene, '/assets/bg/forest.png');
 
   const charConfig = CHARACTERS.find((c) => c.id === state.selectedCharacter) || CHARACTERS[0];
   const playerSprite = new THREE.Sprite(
@@ -66,10 +54,7 @@ async function main() {
   playerSprite.position.set(0, 0, 0);
   playerSprite.scale.set(1, 1, 1);
 
-  const playerController = addFeature(
-    playerSprite,
-    PlayerController as Parameters<typeof addFeature>[1]
-  ) as unknown as PlayerController;
+  const playerController = addGameFeature(playerSprite, PlayerController);
 
   playerController.setStats(state.stats);
   playerController.onTakeDamage = (damage) => {
@@ -82,10 +67,7 @@ async function main() {
 
   game.root.add(playerSprite);
 
-  const weaponSystem = addFeature(
-    game.root,
-    WeaponSystem as Parameters<typeof addFeature>[1]
-  ) as unknown as WeaponSystem;
+  const weaponSystem = addGameFeature(game.root, WeaponSystem);
 
   weaponSystem.setTarget(playerSprite);
 
@@ -118,10 +100,7 @@ async function main() {
     enemySprite.position.set(x, y, 0);
     enemySprite.scale.set(enemyConfig.scale, enemyConfig.scale, 1);
 
-    const enemyAI = addFeature(
-      enemySprite,
-      EnemyAI as Parameters<typeof addFeature>[1]
-    ) as unknown as EnemyAI;
+    const enemyAI = addGameFeature(enemySprite, EnemyAI);
 
     enemyAI.setConfig(enemyConfig);
     enemyAI.setTarget(playerSprite);
@@ -166,10 +145,7 @@ async function main() {
     const critRoll = Math.random();
     const actualDamage = critRoll < stats.critChance ? damage * stats.critDamage : damage;
 
-    const projectile = addFeature(
-      projectileSprite,
-      Projectile as Parameters<typeof addFeature>[1]
-    ) as unknown as Projectile;
+    const projectile = addGameFeature(projectileSprite, Projectile);
 
     projectile.setup(
       actualDamage,
@@ -251,7 +227,7 @@ async function main() {
     }
   }
 
-  addFeature(game.root, GameLoop as Parameters<typeof addFeature>[1]);
+  addGameFeature(game.root, GameLoop);
 
   waveSystem.onSpawnEnemy = (enemyConfig) => {
     spawnEnemy(enemyConfig);
@@ -330,7 +306,7 @@ async function main() {
         stats.update();
       }
     }
-    addFeature(game.root, StatsFeature as Parameters<typeof addFeature>[1]);
+    addGameFeature(game.root, StatsFeature);
 
     const cheats = new CheatsPanel(state);
     cheats.onGodMode = (enabled) => {

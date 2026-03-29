@@ -1,11 +1,11 @@
 import * as THREE from 'three';
-import { GameRenderer, addFeature, Object3DFeature } from '@turbo-games/renderer';
+import { GameRenderer, addGameFeature, createImageTexture, Object3DFeature } from '@turbo-games/renderer';
 import { AdManager } from '@turbo-games/ads';
+import { AnalyticsManager } from '@turbo-games/analytics';
 import { GameState } from './game-state';
 import { ClickTarget } from './features/click-target';
 import { GameUI } from './ui/game-ui';
 import { ConfiguratorPanel } from './ui/configurator';
-import { createImageTexture } from './textures';
 import { ASSETS, BACKGROUNDS_ASSETS } from './config';
 
 async function main() {
@@ -23,6 +23,7 @@ async function main() {
   // State & services
   const state = new GameState();
   const adManager = new AdManager();
+  const analytics = new AnalyticsManager();
 
   // Background — fit-to-width with blurred bars
   // WebGPU creates the GPU texture once at the canvas size on first upload —
@@ -112,11 +113,10 @@ async function main() {
     transparent: true,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.position.set(0, 0, 0);
-  sprite.scale.set(2.5, 2.5, 1);
+  sprite.position.set(0, -0.3, 0);
+  sprite.scale.set(5, 5, 1);
 
-  // kvy-core types target TS5; cast needed for TS6 compat
-  const clickTarget = addFeature(sprite, ClickTarget as Parameters<typeof addFeature>[1]) as unknown as ClickTarget;
+  const clickTarget = addGameFeature(sprite, ClickTarget);
   clickTarget.onClicked = () => {
     const points = state.click();
     ui.showFloatText(points);
@@ -144,7 +144,7 @@ async function main() {
     class StatsFeature extends Object3DFeature {
       onBeforeRender() { stats.update(); }
     }
-    addFeature(game.root, StatsFeature as Parameters<typeof addFeature>[1]);
+    addGameFeature(game.root, StatsFeature);
 
     new ConfiguratorPanel({
       getCurrentAsset: () => state.currentAsset,

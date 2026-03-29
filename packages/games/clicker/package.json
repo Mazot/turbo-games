@@ -13,6 +13,8 @@
     "@turbo-games/renderer": "workspace:*",
     "@turbo-games/events": "workspace:*",
     "@turbo-games/ads": "workspace:*",
+    "@turbo-games/analytics": "workspace:*",
+    "@turbo-games/ui": "workspace:*",
     "three": "^0.183.2"
   },
   "devDependencies": {

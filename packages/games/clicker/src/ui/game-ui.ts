@@ -1,5 +1,6 @@
-import { AdManager } from '@turbo-games/ads';
-import { GameState } from '../game-state';
+import type { AdManager } from '@turbo-games/ads';
+import { makeEl, formatNumber } from '@turbo-games/ui';
+import type { GameState } from '../game-state';
 import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG } from '../config';
 
 export class GameUI {
@@ -240,21 +241,6 @@ export class GameUI {
   }
 }
 
-function makeEl<K extends keyof HTMLElementTagNameMap>(
-  tag: K,
-  className: string,
-): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  e.className = className;
-  return e;
-}
-
-function formatNumber(n: number): string {
-  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
-  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'K';
-  return n.toString();
-}
-
 const UI_CSS = /* css */ `
   #game-ui {
     position: fixed;
@@ -274,9 +260,8 @@ const UI_CSS = /* css */ `
   .score-panel {
     position: absolute;
     top: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    text-align: center;
+    left: 24px;
+    text-align: left;
     pointer-events: none;
   }
 
@@ -299,8 +284,7 @@ const UI_CSS = /* css */ `
   .boost-indicator {
     position: absolute;
     top: 100px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 24px;
     background: linear-gradient(135deg, rgba(255,80,0,0.9), rgba(255,160,0,0.9));
     color: #fff;
     padding: 8px 24px;
@@ -315,8 +299,8 @@ const UI_CSS = /* css */ `
   .boost-indicator.hidden { display: none; }
 
   @keyframes boostPulse {
-    0%, 100% { transform: translateX(-50%) scale(1); }
-    50% { transform: translateX(-50%) scale(1.06); }
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
   }
 
   .float-container {
@@ -332,7 +316,7 @@ const UI_CSS = /* css */ `
 
   .float-text {
     position: absolute;
-    top: 42%;
+    top: 55%;
     font-size: 30px;
     font-weight: 800;
     color: #ffd700;
@@ -348,9 +332,9 @@ const UI_CSS = /* css */ `
   .bottom-bar {
     position: absolute;
     bottom: 28px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 24px;
     display: flex;
+    flex-direction: column;
     gap: 10px;
   }
 

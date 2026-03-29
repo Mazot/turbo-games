@@ -109,7 +109,7 @@ writeFileSync(
 
 writeFileSync(
   join(gameDir, 'src', 'main.ts'),
-  `import { GameRenderer, Object3DFeature, addFeature } from '@turbo-games/renderer';
+  `import { GameRenderer, Object3DFeature, addGameFeature } from '@turbo-games/renderer';
 import { AdManager } from '@turbo-games/ads';
 import { AnalyticsManager } from '@turbo-games/analytics';
 
@@ -124,6 +124,8 @@ async function main() {
   const adManager = new AdManager();
   const analytics = new AnalyticsManager();
 
+  // TODO: Add game logic here
+
   // Dev tools: FPS stats
   if (import.meta.env.DEV) {
     const { default: Stats } = await import('three/addons/libs/stats.module.js');
@@ -132,13 +134,11 @@ async function main() {
     class StatsFeature extends Object3DFeature {
       onBeforeRender() { stats.update(); }
     }
-    addFeature(game.root, StatsFeature as Parameters<typeof addFeature>[1]);
+    addGameFeature(game.root, StatsFeature);
   }
-
-  // TODO: Add game logic here
 }
 
-main().catch(console.error);
+main();
 `,
 );
 

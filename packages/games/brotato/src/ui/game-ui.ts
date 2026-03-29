@@ -1,5 +1,6 @@
 import type { GameState } from '../game-state';
 import type { UpgradeOption } from '../types';
+import { makeEl } from '@turbo-games/ui';
 import { ITEMS } from '../config/items';
 import { WEAPONS } from '../config/weapons';
 

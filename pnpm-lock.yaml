@@ -145,18 +145,30 @@ importers:
 
   packages/games/brotato:
     dependencies:
+      '@turbo-games/ads':
+        specifier: workspace:*
+        version: link:../../core/ads
+      '@turbo-games/analytics':
+        specifier: workspace:*
+        version: link:../../core/analytics
       '@turbo-games/audio':
         specifier: workspace:*
         version: link:../../core/audio
       '@turbo-games/events':
         specifier: workspace:*
         version: link:../../core/events
+      '@turbo-games/math':
+        specifier: workspace:*
+        version: link:../../core/math
       '@turbo-games/physics':
         specifier: workspace:*
         version: link:../../core/physics
       '@turbo-games/renderer':
         specifier: workspace:*
         version: link:../../core/renderer
+      '@turbo-games/ui':
+        specifier: workspace:*
+        version: link:../../core/ui
       three:
         specifier: ^0.183.2
         version: 0.183.2
@@ -176,12 +188,18 @@ importers:
       '@turbo-games/ads':
         specifier: workspace:*
         version: link:../../core/ads
+      '@turbo-games/analytics':
+        specifier: workspace:*
+        version: link:../../core/analytics
       '@turbo-games/events':
         specifier: workspace:*
         version: link:../../core/events
       '@turbo-games/renderer':
         specifier: workspace:*
         version: link:../../core/renderer
+      '@turbo-games/ui':
+        specifier: workspace:*
+        version: link:../../core/ui
       three:
         specifier: ^0.183.2
         version: 0.183.2

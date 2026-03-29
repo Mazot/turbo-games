@@ -9,7 +9,8 @@ import { addFeature } from '@vladkrutenyuk/three-kvy-core';
  */
 export function addGameFeature<T extends Object3DFeature>(
   object: THREE.Object3D,
-  FeatureClass: new () => T,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  FeatureClass: new (...args: any[]) => T,
 ): T {
   return addFeature(object, FeatureClass as Parameters<typeof addFeature>[1]) as T;
 }

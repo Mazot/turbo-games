@@ -1,10 +1,7 @@
-import { defineConfig } from 'vite';
+import { createGameViteConfig } from '../../shared-vite-config';
 
-export default defineConfig({
+export default createGameViteConfig(import.meta.dirname, {
   server: {
     port: 5174,
-  },
-  build: {
-    target: 'esnext',
   },
 });
