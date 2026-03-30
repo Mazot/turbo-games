@@ -191,6 +191,9 @@ importers:
       '@turbo-games/analytics':
         specifier: workspace:*
         version: link:../../core/analytics
+      '@turbo-games/audio':
+        specifier: workspace:*
+        version: link:../../core/audio
       '@turbo-games/events':
         specifier: workspace:*
         version: link:../../core/events

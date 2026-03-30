@@ -1,7 +1,13 @@
 import * as THREE from 'three';
-import { GameRenderer, addGameFeature, createImageTexture, Object3DFeature } from '@turbo-games/renderer';
+import {
+  GameRenderer,
+  addGameFeature,
+  createImageTexture,
+  Object3DFeature,
+} from '@turbo-games/renderer';
 import { AdManager } from '@turbo-games/ads';
 import { AnalyticsManager } from '@turbo-games/analytics';
+import { AudioManager } from '@turbo-games/audio';
 import { GameState } from './game-state';
 import { ClickTarget } from './features/click-target';
 import { GameUI } from './ui/game-ui';
@@ -24,6 +30,8 @@ async function main() {
   const state = new GameState();
   const adManager = new AdManager();
   const analytics = new AnalyticsManager();
+  const audio = new AudioManager();
+  audio.register('click', { src: 'assets/sfx/click.wav', volume: 0.5 });
 
   // Background — fit-to-width with blurred bars
   // WebGPU creates the GPU texture once at the canvas size on first upload —
@@ -96,7 +104,10 @@ async function main() {
   function applyBackground(index: number) {
     const bg = BACKGROUNDS_ASSETS[index];
     const img = new Image();
-    img.onload = () => { bgImg = img; drawBackground(); };
+    img.onload = () => {
+      bgImg = img;
+      drawBackground();
+    };
     img.src = bg.image;
   }
 
@@ -118,6 +129,7 @@ async function main() {
 
   const clickTarget = addGameFeature(sprite, ClickTarget);
   clickTarget.onClicked = () => {
+    audio.play('click');
     const points = state.click();
     ui.showFloatText(points);
   };
@@ -142,7 +154,9 @@ async function main() {
     const stats = new Stats();
     document.body.appendChild(stats.dom);
     class StatsFeature extends Object3DFeature {
-      onBeforeRender() { stats.update(); }
+      onBeforeRender() {
+        stats.update();
+      }
     }
     addGameFeature(game.root, StatsFeature);
 
