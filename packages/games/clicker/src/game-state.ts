@@ -1,5 +1,5 @@
 import { GameEventBus } from '@turbo-games/events';
-import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG } from './config';
+import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG, ROULETTE_CONFIG } from './config';
 import type { ClickerEvents, SaveData } from './types';
 
 const SAVE_KEY = 'turbo-clicker-save';
@@ -10,9 +10,11 @@ export class GameState {
   private _score = 0;
   private _currentAsset = 0;
   private _currentBackground = 0;
+  private _assetLevels: number[] = new Array(ASSETS.length).fill(0);
   private _unlockedAssets = new Set<number>([0]);
   private _unlockedBackgrounds = new Set<number>([0]);
   private _boostEndTime = 0;
+  private _lastFreeSpinTime = 0;
 
   constructor() {
     this.load();
@@ -43,7 +45,13 @@ export class GameState {
   }
 
   get pointsPerClick(): number {
-    return ASSETS[this._currentAsset].pointsPerClick * this.multiplier;
+    const level = this._assetLevels[this._currentAsset];
+    return ASSETS[this._currentAsset].levels[level].pointsPerClick * this.multiplier;
+  }
+
+  /** Returns the current upgrade level (0–5) of the given asset. */
+  getAssetLevel(assetIndex: number): number {
+    return this._assetLevels[assetIndex] ?? 0;
   }
 
   isAssetUnlocked(index: number): boolean {
@@ -66,7 +74,7 @@ export class GameState {
   buyAsset(index: number): boolean {
     if (index < 0 || index >= ASSETS.length) return false;
     if (this._unlockedAssets.has(index)) return false;
-    const cost = ASSETS[index].cost;
+    const cost = ASSETS[index].unlockCost;
     if (this._score < cost) return false;
 
     this._score -= cost;
@@ -107,9 +115,59 @@ export class GameState {
     return true;
   }
 
+  /** Upgrades an unlocked asset to the next level. Returns true on success. */
+  upgradeAsset(assetIndex: number): boolean {
+    if (!this._unlockedAssets.has(assetIndex)) return false;
+    const currentLevel = this._assetLevels[assetIndex];
+    const maxLevel = ASSETS[assetIndex].levels.length - 1;
+    if (currentLevel >= maxLevel) return false;
+    const nextLevel = currentLevel + 1;
+    const cost = ASSETS[assetIndex].levels[nextLevel].upgradeCost;
+    if (this._score < cost) return false;
+    this._score -= cost;
+    this._assetLevels[assetIndex] = nextLevel;
+    this.events.emit('score:change', this._score);
+    this.events.emit('asset:level:change', assetIndex, nextLevel);
+    this.save();
+    return true;
+  }
+
   activateBoost(): void {
     this._boostEndTime = Date.now() + BOOST_CONFIG.durationMs;
     this.events.emit('boost:start', BOOST_CONFIG.multiplier, BOOST_CONFIG.durationMs);
+    this.save();
+  }
+
+  /** Returns true if the free spin cooldown has elapsed. */
+  canFreeSpin(): boolean {
+    return Date.now() - this._lastFreeSpinTime >= ROULETTE_CONFIG.freeSpinCooldownMs;
+  }
+
+  /** Milliseconds remaining until the next free spin is available. */
+  freeSpinCooldownRemaining(): number {
+    return Math.max(0, ROULETTE_CONFIG.freeSpinCooldownMs - (Date.now() - this._lastFreeSpinTime));
+  }
+
+  /** Marks a free spin as consumed right now. */
+  consumeFreeSpin(): void {
+    this._lastFreeSpinTime = Date.now();
+    this.save();
+  }
+
+  /** Deducts the spin cost from the score. Returns true on success. */
+  spendForSpin(): boolean {
+    if (this._score < ROULETTE_CONFIG.spinCost) return false;
+    this._score -= ROULETTE_CONFIG.spinCost;
+    this.events.emit('score:change', this._score);
+    this.save();
+    return true;
+  }
+
+  /** Adds roulette reward points to the score and emits the reward event. */
+  applyRouletteReward(points: number): void {
+    this._score += points;
+    this.events.emit('score:change', this._score);
+    this.events.emit('roulette:reward', points);
     this.save();
   }
 
@@ -118,9 +176,11 @@ export class GameState {
       score: this._score,
       currentAsset: this._currentAsset,
       currentBackground: this._currentBackground,
+      assetLevels: [...this._assetLevels],
       unlockedAssets: [...this._unlockedAssets],
       unlockedBackgrounds: [...this._unlockedBackgrounds],
       boostEndTime: this._boostEndTime,
+      lastFreeSpinTime: this._lastFreeSpinTime,
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -137,9 +197,14 @@ export class GameState {
       this._score = data.score ?? 0;
       this._currentAsset = data.currentAsset ?? 0;
       this._currentBackground = data.currentBackground ?? 0;
+      this._assetLevels = Array.from(
+        { length: ASSETS.length },
+        (_, i) => data.assetLevels?.[i] ?? 0,
+      );
       this._unlockedAssets = new Set(data.unlockedAssets ?? [0]);
       this._unlockedBackgrounds = new Set(data.unlockedBackgrounds ?? [0]);
       this._boostEndTime = data.boostEndTime ?? 0;
+      this._lastFreeSpinTime = data.lastFreeSpinTime ?? 0;
     } catch {
       /* ignore parse errors */
     }

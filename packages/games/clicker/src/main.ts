@@ -118,14 +118,31 @@ async function main() {
   });
   applyBackground(state.currentBackground);
 
-  // Clickable sprite
+  // Clickable sprite — texture reflects current asset at its current level
   const material = new THREE.SpriteMaterial({
-    map: createImageTexture(ASSETS[state.currentAsset].image),
+    map: createImageTexture(
+      ASSETS[state.currentAsset].levels[state.getAssetLevel(state.currentAsset)].image,
+    ),
     transparent: true,
   });
   const sprite = new THREE.Sprite(material);
   sprite.position.set(0, -0.3, 0);
   sprite.scale.set(5, 5, 1);
+
+  /** Reloads the sprite texture to match the active asset and its current level. */
+  const updateSpriteTexture = () => {
+    const lvl = state.getAssetLevel(state.currentAsset);
+    const img = ASSETS[state.currentAsset].levels[lvl].image;
+    material.map?.dispose();
+    material.map = createImageTexture(img);
+    material.needsUpdate = true;
+  };
+
+  state.events.on('asset:change', updateSpriteTexture);
+  state.events.on('asset:level:change', (assetIndex) => {
+    if (assetIndex === state.currentAsset) updateSpriteTexture();
+  });
+  state.events.on('background:change', (index) => applyBackground(index));
 
   const clickTarget = addGameFeature(sprite, ClickTarget);
   clickTarget.onClicked = () => {
@@ -137,17 +154,7 @@ async function main() {
   game.root.add(sprite);
 
   // UI
-  const ui = new GameUI(state, adManager, {
-    onAssetSelect: (index) => {
-      const tex = createImageTexture(ASSETS[index].image);
-      material.map?.dispose();
-      material.map = tex;
-      material.needsUpdate = true;
-    },
-    onBackgroundSelect: (index) => {
-      applyBackground(index);
-    },
-  });
+  const ui = new GameUI(state, adManager);
 
   if (import.meta.env.DEV) {
     const { default: Stats } = await import('three/addons/libs/stats.module.js');
@@ -160,18 +167,8 @@ async function main() {
     }
     addGameFeature(game.root, StatsFeature);
 
-    new ConfiguratorPanel({
-      getCurrentAsset: () => state.currentAsset,
-      getCurrentBackground: () => state.currentBackground,
-      onAssetChange: (index) => {
-        const tex = createImageTexture(ASSETS[index].image);
-        material.map?.dispose();
-        material.map = tex;
-        material.needsUpdate = true;
-      },
-      onBackgroundChange: (index) => {
-        applyBackground(index);
-      },
+    new ConfiguratorPanel(state, updateSpriteTexture, (index) => {
+      if (state.currentBackground === index) applyBackground(index);
     });
   }
 }

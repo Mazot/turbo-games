@@ -131,6 +131,12 @@ importers:
         specifier: ^6.0.0
         version: 6.0.2
 
+  packages/core/roulette:
+    devDependencies:
+      typescript:
+        specifier: ^6.0.0
+        version: 6.0.2
+
   packages/core/state:
     devDependencies:
       typescript:
@@ -200,6 +206,9 @@ importers:
       '@turbo-games/renderer':
         specifier: workspace:*
         version: link:../../core/renderer
+      '@turbo-games/roulette':
+        specifier: workspace:*
+        version: link:../../core/roulette
       '@turbo-games/ui':
         specifier: workspace:*
         version: link:../../core/ui

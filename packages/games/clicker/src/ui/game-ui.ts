@@ -2,6 +2,7 @@ import type { AdManager } from '@turbo-games/ads';
 import { makeEl, formatNumber } from '@turbo-games/ui';
 import type { GameState } from '../game-state';
 import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG } from '../config';
+import { RouletteModal } from './roulette-modal';
 
 export class GameUI {
   private root: HTMLDivElement;
@@ -10,18 +11,17 @@ export class GameUI {
   private boostEl!: HTMLElement;
   private shopOverlay: HTMLDivElement | null = null;
   private boostInterval: ReturnType<typeof setInterval> | null = null;
+  private rouletteModal: RouletteModal;
 
   constructor(
     private state: GameState,
     private adManager: AdManager,
-    private callbacks: {
-      onAssetSelect: (index: number) => void;
-      onBackgroundSelect: (index: number) => void;
-    },
   ) {
     this.root = document.createElement('div');
     this.root.id = 'game-ui';
     document.body.appendChild(this.root);
+
+    this.rouletteModal = new RouletteModal(state, adManager);
 
     this.injectStyles();
     this.buildUI();
@@ -43,6 +43,7 @@ export class GameUI {
 
   destroy(): void {
     if (this.boostInterval !== null) clearInterval(this.boostInterval);
+    this.rouletteModal.close();
     this.root.remove();
     const style = document.getElementById('game-ui-styles');
     style?.remove();
@@ -60,13 +61,11 @@ export class GameUI {
     floatContainer.id = 'float-container';
 
     const bottomBar = makeEl('div', 'bottom-bar');
-    const btnAd = this.makeButton(
-      `📺 Bonus x${BOOST_CONFIG.multiplier}`,
-      () => this.onAdClick(),
-    );
-    const btnAssets = this.makeButton('🎨 Assets', () => this.openShop('assets'));
-    const btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openShop('backgrounds'));
-    bottomBar.append(btnAd, btnAssets, btnBgs);
+    const btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () => this.onAdClick());
+    const btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
+    const btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
+    const btnRoulette = this.makeButton('🎰 Roulette', () => this.rouletteModal.open());
+    bottomBar.append(btnAd, btnAssets, btnBgs, btnRoulette);
 
     this.root.append(scorePanel, this.boostEl, floatContainer, bottomBar);
   }
@@ -112,9 +111,8 @@ export class GameUI {
     }
   }
 
-  private openShop(type: 'assets' | 'backgrounds'): void {
+  private openAssetsShop(): void {
     this.closeShop();
-
     const overlay = makeEl('div', 'shop-overlay');
     overlay.addEventListener('pointerdown', (e) => {
       if (e.target === overlay) this.closeShop();
@@ -122,9 +120,8 @@ export class GameUI {
     });
 
     const panel = makeEl('div', 'shop-panel');
-
     const titleBar = makeEl('div', 'shop-title');
-    titleBar.textContent = type === 'assets' ? '🎨 Asset Shop' : '🖼️ Background Shop';
+    titleBar.textContent = '🎨 Asset Shop';
     const closeBtn = document.createElement('button');
     closeBtn.className = 'shop-close';
     closeBtn.textContent = '✕';
@@ -135,41 +132,138 @@ export class GameUI {
     titleBar.appendChild(closeBtn);
 
     const list = makeEl('div', 'shop-list');
-    const items = type === 'assets' ? ASSETS : BACKGROUNDS_ASSETS;
+    ASSETS.forEach((_, i) => list.appendChild(this.buildAssetRow(i)));
 
-    items.forEach((item, i) => {
+    panel.append(titleBar, list);
+    overlay.appendChild(panel);
+    this.root.appendChild(overlay);
+    this.shopOverlay = overlay;
+  }
+
+  /** Builds one row in the asset shop for asset at the given index. */
+  private buildAssetRow(i: number): HTMLElement {
+    const asset = ASSETS[i];
+    const isUnlocked = this.state.isAssetUnlocked(i);
+    const isCurrent = this.state.currentAsset === i;
+    const currentLevel = this.state.getAssetLevel(i);
+    const maxLevel = asset.levels.length - 1;
+    const levelData = asset.levels[isUnlocked ? currentLevel : 0];
+
+    const row = makeEl('div', 'shop-item');
+
+    const img = document.createElement('img');
+    img.src = levelData.image;
+    img.alt = asset.name;
+    img.className = 'shop-item-img';
+
+    const info = makeEl('div', 'shop-item-info');
+    const nameEl = makeEl('span', 'shop-item-name');
+    nameEl.textContent = asset.name;
+    info.appendChild(nameEl);
+    if (isUnlocked) {
+      const levelEl = makeEl('span', 'shop-item-level');
+      levelEl.textContent = `Lv ${currentLevel + 1} / ${asset.levels.length}  ·  +${levelData.pointsPerClick}/click`;
+      info.appendChild(levelEl);
+    }
+
+    const actions = makeEl('div', 'shop-item-actions');
+
+    if (isUnlocked) {
+      if (currentLevel < maxLevel) {
+        const nextCost = asset.levels[currentLevel + 1].upgradeCost;
+        const canAfford = this.state.score >= nextCost;
+        const upgradeBtn = document.createElement('button');
+        upgradeBtn.className = `shop-action${canAfford ? ' buy' : ' locked'}`;
+        upgradeBtn.textContent = `↑ ${formatNumber(nextCost)}⭐`;
+        upgradeBtn.disabled = !canAfford;
+        upgradeBtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          if (this.state.upgradeAsset(i)) {
+            this.closeShop();
+            this.openAssetsShop();
+          }
+        });
+        actions.appendChild(upgradeBtn);
+      } else {
+        const maxBadge = makeEl('span', 'shop-max-badge');
+        maxBadge.textContent = 'MAX';
+        actions.appendChild(maxBadge);
+      }
+
+      const actionBtn = document.createElement('button');
+      if (isCurrent) {
+        actionBtn.className = 'shop-action current';
+        actionBtn.textContent = '✓';
+        actionBtn.disabled = true;
+      } else {
+        actionBtn.className = 'shop-action select';
+        actionBtn.textContent = 'Select';
+        actionBtn.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.state.selectAsset(i);
+          this.closeShop();
+          this.openAssetsShop();
+        });
+      }
+      actions.appendChild(actionBtn);
+    } else {
+      const canAfford = this.state.score >= asset.unlockCost;
+      const unlockBtn = document.createElement('button');
+      unlockBtn.className = `shop-action${canAfford ? ' buy' : ' locked'}`;
+      unlockBtn.textContent = `${formatNumber(asset.unlockCost)}⭐`;
+      unlockBtn.disabled = !canAfford;
+      unlockBtn.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        if (this.state.buyAsset(i)) {
+          this.closeShop();
+          this.openAssetsShop();
+        }
+      });
+      actions.appendChild(unlockBtn);
+    }
+
+    row.append(img, info, actions);
+    return row;
+  }
+
+  private openBgsShop(): void {
+    this.closeShop();
+    const overlay = makeEl('div', 'shop-overlay');
+    overlay.addEventListener('pointerdown', (e) => {
+      if (e.target === overlay) this.closeShop();
+      e.stopPropagation();
+    });
+
+    const panel = makeEl('div', 'shop-panel');
+    const titleBar = makeEl('div', 'shop-title');
+    titleBar.textContent = '🖼️ Background Shop';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'shop-close';
+    closeBtn.textContent = '✕';
+    closeBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.closeShop();
+    });
+    titleBar.appendChild(closeBtn);
+
+    const list = makeEl('div', 'shop-list');
+    BACKGROUNDS_ASSETS.forEach((bg, i) => {
       const row = makeEl('div', 'shop-item');
 
+      const img = document.createElement('img');
+      img.src = bg.image;
+      img.alt = bg.name;
+      img.className = 'shop-item-img';
+
       const info = makeEl('div', 'shop-item-info');
-      if (type === 'assets') {
-        const a = item as (typeof ASSETS)[number];
-        const img = document.createElement('img');
-        img.src = a.image;
-        img.alt = a.name;
-        img.className = 'shop-item-img';
-        info.appendChild(img);
-        info.append(` ${a.name} (+${a.pointsPerClick}/click)`);
-      } else {
-        const bg = item as (typeof BACKGROUNDS_ASSETS)[number];
-        const img = document.createElement('img');
-        img.src = bg.image;
-        img.alt = bg.name;
-        img.className = 'shop-item-img';
-        info.appendChild(img);
-        info.append(` ${bg.name}`);
-      }
+      const nameEl = makeEl('span', 'shop-item-name');
+      nameEl.textContent = bg.name;
+      info.appendChild(nameEl);
 
       const action = document.createElement('button');
       action.className = 'shop-action';
-
-      const isUnlocked =
-        type === 'assets'
-          ? this.state.isAssetUnlocked(i)
-          : this.state.isBackgroundUnlocked(i);
-      const isCurrent =
-        type === 'assets'
-          ? this.state.currentAsset === i
-          : this.state.currentBackground === i;
+      const isUnlocked = this.state.isBackgroundUnlocked(i);
+      const isCurrent = this.state.currentBackground === i;
 
       if (isCurrent) {
         action.textContent = '✓ Selected';
@@ -180,29 +274,19 @@ export class GameUI {
         action.classList.add('select');
         action.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
-          if (type === 'assets') {
-            this.state.selectAsset(i);
-            this.callbacks.onAssetSelect(i);
-          } else {
-            this.state.selectBackground(i);
-            this.callbacks.onBackgroundSelect(i);
-          }
+          this.state.selectBackground(i);
           this.closeShop();
-          this.openShop(type);
+          this.openBgsShop();
         });
       } else {
-        action.textContent = `${formatNumber(item.cost)} ⭐`;
-        if (this.state.score >= item.cost) {
+        action.textContent = `${formatNumber(bg.cost)}⭐`;
+        if (this.state.score >= bg.cost) {
           action.classList.add('buy');
           action.addEventListener('pointerdown', (e) => {
             e.stopPropagation();
-            const bought =
-              type === 'assets'
-                ? this.state.buyAsset(i)
-                : this.state.buyBackground(i);
-            if (bought) {
+            if (this.state.buyBackground(i)) {
               this.closeShop();
-              this.openShop(type);
+              this.openBgsShop();
             }
           });
         } else {
@@ -211,7 +295,7 @@ export class GameUI {
         }
       }
 
-      row.append(info, action);
+      row.append(img, info, action);
       list.appendChild(row);
     });
 
@@ -446,10 +530,43 @@ const UI_CSS = /* css */ `
     color: #fff;
     font-size: 15px;
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    justify-content: center;
     flex: 1;
     min-width: 0;
+  }
+
+  .shop-item-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .shop-item-level {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.45);
+    margin-top: 2px;
+    white-space: nowrap;
+  }
+
+  .shop-item-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .shop-max-badge {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffd700;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 4px 8px;
+    border-radius: 8px;
+    white-space: nowrap;
   }
 
   .shop-item-img {

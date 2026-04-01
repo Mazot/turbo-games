@@ -16,6 +16,7 @@
     "@turbo-games/analytics": "workspace:*",
     "@turbo-games/audio": "workspace:*",
     "@turbo-games/ui": "workspace:*",
+    "@turbo-games/roulette": "workspace:*",
     "three": "^0.183.2"
   },
   "devDependencies": {
