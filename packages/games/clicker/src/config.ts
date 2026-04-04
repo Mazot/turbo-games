@@ -113,6 +113,11 @@ export const BOOST_CONFIG = {
   durationMs: 30_000,
 };
 
+export const AUTOCLICK_CONFIG = {
+  durationMs: 60_000,
+  clicksPerSecond: 5,
+};
+
 export interface RouletteSectorConfig {
   label: string;
   color: string;
@@ -139,4 +144,9 @@ export const ROULETTE_CONFIG = {
   wheelSize: 280,
   freeSpinCooldownMs: 300_000,
   spinCost: 100,
+};
+
+export const MUSIC_CONFIG = {
+  src: 'assets/sfx/music.mp3',
+  volume: 0.3,
 };

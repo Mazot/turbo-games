@@ -1,5 +1,6 @@
 import {
   ASSETS,
+  AUTOCLICK_CONFIG,
   BACKGROUNDS_ASSETS,
   BOOST_CONFIG,
   ROULETTE_SECTORS,
@@ -61,6 +62,7 @@ export class ConfiguratorPanel {
     this.contentEl.appendChild(this.buildSection('🎨 Assets', this.buildAssetsSection()));
     this.contentEl.appendChild(this.buildSection('🖼️ Backgrounds', this.buildBgsTable()));
     this.contentEl.appendChild(this.buildSection('⚡ Boost', this.buildBoostFields()));
+    this.contentEl.appendChild(this.buildSection('🤖 Auto-click', this.buildAutoclickFields()));
     this.contentEl.appendChild(this.buildSection('🎰 Roulette', this.buildRouletteSection()));
 
     this.root.append(this.tabEl, this.contentEl);
@@ -217,6 +219,42 @@ export class ConfiguratorPanel {
         }),
       ),
     );
+    return wrap;
+  }
+
+  // ─── Auto-click fields ────────────────────────────────────────────────────
+
+  private buildAutoclickFields(): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'cfg-fields';
+    wrap.appendChild(
+      this.makeLabeledField(
+        'Duration (ms)',
+        this.makeNumberInput(AUTOCLICK_CONFIG.durationMs, 'cfg-num-wide', (v) => {
+          AUTOCLICK_CONFIG.durationMs = v;
+        }),
+      ),
+    );
+    wrap.appendChild(
+      this.makeLabeledField(
+        'Clicks / sec',
+        this.makeNumberInput(AUTOCLICK_CONFIG.clicksPerSecond, 'cfg-num-wide', (v) => {
+          AUTOCLICK_CONFIG.clicksPerSecond = v;
+        }),
+      ),
+    );
+
+    // Force activate autoclick button
+    const forceBtn = document.createElement('button');
+    forceBtn.className = 'cfg-input';
+    forceBtn.textContent = '🤖 Force Auto-click';
+    forceBtn.style.cssText = 'cursor: pointer; text-align: center; margin-top: 8px; padding: 8px;';
+    forceBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.state.activateAutoclick();
+    });
+    wrap.appendChild(forceBtn);
+
     return wrap;
   }
 

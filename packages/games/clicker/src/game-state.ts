@@ -1,5 +1,11 @@
 import { GameEventBus } from '@turbo-games/events';
-import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG, ROULETTE_CONFIG } from './config';
+import {
+  ASSETS,
+  AUTOCLICK_CONFIG,
+  BACKGROUNDS_ASSETS,
+  BOOST_CONFIG,
+  ROULETTE_CONFIG,
+} from './config';
 import type { ClickerEvents, SaveData } from './types';
 
 const SAVE_KEY = 'turbo-clicker-save';
@@ -15,6 +21,7 @@ export class GameState {
   private _unlockedBackgrounds = new Set<number>([0]);
   private _boostEndTime = 0;
   private _lastFreeSpinTime = 0;
+  private _autoclickEndTime = 0;
 
   constructor() {
     this.load();
@@ -42,6 +49,14 @@ export class GameState {
 
   get boostRemainingMs(): number {
     return Math.max(0, this._boostEndTime - Date.now());
+  }
+
+  get autoclickActive(): boolean {
+    return Date.now() < this._autoclickEndTime;
+  }
+
+  get autoclickRemainingMs(): number {
+    return Math.max(0, this._autoclickEndTime - Date.now());
   }
 
   get pointsPerClick(): number {
@@ -138,6 +153,20 @@ export class GameState {
     this.save();
   }
 
+  /** Starts the auto-click timer. Duration comes from AUTOCLICK_CONFIG. */
+  activateAutoclick(): void {
+    this._autoclickEndTime = Date.now() + AUTOCLICK_CONFIG.durationMs;
+    this.events.emit('autoclick:start', AUTOCLICK_CONFIG.durationMs);
+    this.save();
+  }
+
+  /** Stops the auto-click timer immediately and emits autoclick:stop. */
+  stopAutoclick(): void {
+    this._autoclickEndTime = 0;
+    this.events.emit('autoclick:stop');
+    this.save();
+  }
+
   /** Returns true if the free spin cooldown has elapsed. */
   canFreeSpin(): boolean {
     return Date.now() - this._lastFreeSpinTime >= ROULETTE_CONFIG.freeSpinCooldownMs;
@@ -181,6 +210,7 @@ export class GameState {
       unlockedBackgrounds: [...this._unlockedBackgrounds],
       boostEndTime: this._boostEndTime,
       lastFreeSpinTime: this._lastFreeSpinTime,
+      autoclickEndTime: this._autoclickEndTime,
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -205,6 +235,7 @@ export class GameState {
       this._unlockedBackgrounds = new Set(data.unlockedBackgrounds ?? [0]);
       this._boostEndTime = data.boostEndTime ?? 0;
       this._lastFreeSpinTime = data.lastFreeSpinTime ?? 0;
+      this._autoclickEndTime = data.autoclickEndTime ?? 0;
     } catch {
       /* ignore parse errors */
     }

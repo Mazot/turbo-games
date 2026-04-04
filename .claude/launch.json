@@ -3,9 +3,8 @@
   "configurations": [
     {
       "name": "clicker (vite)",
-      "cwd": "packages/games/clicker",
-      "runtimeExecutable": "pnpm",
-      "runtimeArgs": ["dev"],
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["/tmp/clicker-dev.sh"],
       "port": 5173
     },
     {

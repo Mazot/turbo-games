@@ -12,6 +12,8 @@ export interface ClickerEvents extends GameEvents {
   'roulette:open': () => void;
   'roulette:spin': () => void;
   'roulette:reward': (points: number) => void;
+  'autoclick:start': (durationMs: number) => void;
+  'autoclick:stop': () => void;
 }
 
 export interface SaveData {
@@ -23,4 +25,5 @@ export interface SaveData {
   unlockedBackgrounds: number[];
   boostEndTime: number;
   lastFreeSpinTime: number;
+  autoclickEndTime: number;
 }

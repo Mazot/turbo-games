@@ -1,7 +1,7 @@
 import type { AdManager } from '@turbo-games/ads';
 import { makeEl, formatNumber } from '@turbo-games/ui';
 import type { GameState } from '../game-state';
-import { ASSETS, BACKGROUNDS_ASSETS, BOOST_CONFIG } from '../config';
+import { ASSETS, AUTOCLICK_CONFIG, BACKGROUNDS_ASSETS, BOOST_CONFIG } from '../config';
 import { RouletteModal } from './roulette-modal';
 
 export class GameUI {
@@ -11,12 +11,29 @@ export class GameUI {
   private boostEl!: HTMLElement;
   private shopOverlay: HTMLDivElement | null = null;
   private boostInterval: ReturnType<typeof setInterval> | null = null;
+  private autoclickEl!: HTMLElement;
+  private autoclickInterval: ReturnType<typeof setInterval> | null = null;
   private rouletteModal: RouletteModal;
+
+  /**
+   * Optional callback fired on each auto-click tick.
+   * Wire this in main.ts to play sound and trigger the sprite animation,
+   * replicating the effects of a real click.
+   */
+  onAutoClickEffect: (() => void) | null = null;
+
+  /** Optional callback fired when the user toggles background music on/off. */
+  onMusicToggle: (() => void) | null = null;
+
+  private musicEnabled: boolean;
+  private musicBtn!: HTMLButtonElement;
 
   constructor(
     private state: GameState,
     private adManager: AdManager,
+    initialMusicEnabled = true,
   ) {
+    this.musicEnabled = initialMusicEnabled;
     this.root = document.createElement('div');
     this.root.id = 'game-ui';
     document.body.appendChild(this.root);
@@ -28,6 +45,7 @@ export class GameUI {
     this.bindStateEvents();
     this.updateScore();
     this.startBoostTimer();
+    this.startAutoclickTimer();
   }
 
   showFloatText(points: number): void {
@@ -43,6 +61,7 @@ export class GameUI {
 
   destroy(): void {
     if (this.boostInterval !== null) clearInterval(this.boostInterval);
+    if (this.autoclickInterval !== null) clearInterval(this.autoclickInterval);
     this.rouletteModal.close();
     this.root.remove();
     const style = document.getElementById('game-ui-styles');
@@ -57,17 +76,38 @@ export class GameUI {
 
     this.boostEl = makeEl('div', 'boost-indicator hidden');
 
+    this.autoclickEl = makeEl('div', 'autoclick-indicator hidden');
+
     const floatContainer = makeEl('div', 'float-container');
     floatContainer.id = 'float-container';
 
     const bottomBar = makeEl('div', 'bottom-bar');
     const btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () => this.onAdClick());
+    const btnAutoclick = this.makeButton('🤖 Auto-click', () => this.onAutoclickAdClick());
     const btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
     const btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
     const btnRoulette = this.makeButton('🎰 Roulette', () => this.rouletteModal.open());
-    bottomBar.append(btnAd, btnAssets, btnBgs, btnRoulette);
+    bottomBar.append(btnAd, btnAutoclick, btnAssets, btnBgs, btnRoulette);
 
-    this.root.append(scorePanel, this.boostEl, floatContainer, bottomBar);
+    this.musicBtn = document.createElement('button');
+    this.musicBtn.className = 'music-btn';
+    this.musicBtn.title = 'Toggle music';
+    this.updateMusicBtn();
+    this.musicBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.musicEnabled = !this.musicEnabled;
+      this.updateMusicBtn();
+      this.onMusicToggle?.();
+    });
+
+    this.root.append(
+      scorePanel,
+      this.boostEl,
+      this.autoclickEl,
+      floatContainer,
+      bottomBar,
+      this.musicBtn,
+    );
   }
 
   private makeButton(label: string, onClick: () => void): HTMLButtonElement {
@@ -79,6 +119,10 @@ export class GameUI {
       onClick();
     });
     return btn;
+  }
+
+  private updateMusicBtn(): void {
+    this.musicBtn.textContent = this.musicEnabled ? '🎵' : '🔇';
   }
 
   private updateScore(): void {
@@ -109,6 +153,40 @@ export class GameUI {
       // Dev mode: activate boost without ads
       this.state.activateBoost();
     }
+  }
+
+  /** Triggers a rewarded ad then starts the auto-click timer. */
+  private async onAutoclickAdClick(): Promise<void> {
+    if (this.state.autoclickActive) return;
+
+    if (this.adManager.isAvailable('rewarded')) {
+      const success = await this.adManager.show('rewarded');
+      if (success) this.state.activateAutoclick();
+    } else {
+      // Dev mode: activate autoclick without ads
+      this.state.activateAutoclick();
+    }
+  }
+
+  /** Runs auto-click ticks and shows/hides the indicator. */
+  private startAutoclickTimer(): void {
+    this.autoclickInterval = setInterval(() => {
+      if (this.state.autoclickActive) {
+        const sec = Math.ceil(this.state.autoclickRemainingMs / 1_000);
+        this.autoclickEl.textContent = `🤖 Auto-click (${sec}s)`;
+        this.autoclickEl.classList.remove('hidden');
+
+        // Perform auto-clicks per tick (interval ≈ 250 ms)
+        const clicksPerTick = AUTOCLICK_CONFIG.clicksPerSecond / 4;
+        for (let i = 0; i < clicksPerTick; i++) {
+          const points = this.state.click();
+          this.showFloatText(points);
+          this.onAutoClickEffect?.();
+        }
+      } else {
+        this.autoclickEl.classList.add('hidden');
+      }
+    }, 250);
   }
 
   private openAssetsShop(): void {
@@ -382,6 +460,23 @@ const UI_CSS = /* css */ `
 
   .boost-indicator.hidden { display: none; }
 
+  .autoclick-indicator {
+    position: absolute;
+    top: 140px;
+    left: 24px;
+    background: linear-gradient(135deg, rgba(0,140,255,0.9), rgba(0,200,255,0.9));
+    color: #fff;
+    padding: 8px 24px;
+    border-radius: 24px;
+    font-size: 16px;
+    font-weight: 700;
+    animation: boostPulse 1s ease-in-out infinite;
+    box-shadow: 0 0 20px rgba(0,140,255,0.4);
+    white-space: nowrap;
+  }
+
+  .autoclick-indicator.hidden { display: none; }
+
   @keyframes boostPulse {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.06); }
@@ -411,6 +506,35 @@ const UI_CSS = /* css */ `
   @keyframes floatUp {
     0% { opacity: 1; transform: translateY(0) scale(1); }
     100% { opacity: 0; transform: translateY(-90px) scale(1.4); }
+  }
+
+  .music-btn {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    font-size: 22px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .music-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: scale(1.1);
+  }
+
+  .music-btn:active {
+    transform: scale(0.95);
   }
 
   .bottom-bar {

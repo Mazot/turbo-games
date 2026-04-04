@@ -12,7 +12,7 @@ import { GameState } from './game-state';
 import { ClickTarget } from './features/click-target';
 import { GameUI } from './ui/game-ui';
 import { ConfiguratorPanel } from './ui/configurator';
-import { ASSETS, BACKGROUNDS_ASSETS } from './config';
+import { ASSETS, BACKGROUNDS_ASSETS, MUSIC_CONFIG } from './config';
 
 async function main() {
   const container = document.getElementById('root') as HTMLDivElement;
@@ -30,8 +30,21 @@ async function main() {
   const state = new GameState();
   const adManager = new AdManager();
   const analytics = new AnalyticsManager();
+  const MUSIC_PREF_KEY = 'turbo-clicker-music';
+  let musicEnabled = localStorage.getItem(MUSIC_PREF_KEY) !== 'false';
+  let musicUnlocked = false;
+
   const audio = new AudioManager();
   audio.register('click', { src: 'assets/sfx/click.wav', volume: 0.5 });
+  audio.register('music', { src: MUSIC_CONFIG.src, volume: MUSIC_CONFIG.volume, loop: true });
+
+  function tryPlayMusic() {
+    musicUnlocked = true;
+    if (musicEnabled) audio.play('music');
+  }
+
+  // Browser requires a user gesture before playing audio
+  document.addEventListener('pointerdown', tryPlayMusic, { once: true });
 
   // Background — fit-to-width with blurred bars
   // WebGPU creates the GPU texture once at the canvas size on first upload —
@@ -154,7 +167,24 @@ async function main() {
   game.root.add(sprite);
 
   // UI
-  const ui = new GameUI(state, adManager);
+  const ui = new GameUI(state, adManager, musicEnabled);
+
+  // Wire auto-click effects: play click sound + trigger sprite animation on each auto-click tick,
+  // reproducing the same feedback as a real player click.
+  ui.onAutoClickEffect = () => {
+    audio.play('click');
+    clickTarget.triggerClickEffect();
+  };
+
+  ui.onMusicToggle = () => {
+    musicEnabled = !musicEnabled;
+    localStorage.setItem(MUSIC_PREF_KEY, String(musicEnabled));
+    if (musicEnabled) {
+      if (musicUnlocked) audio.play('music');
+    } else {
+      audio.stop('music');
+    }
+  };
 
   if (import.meta.env.DEV) {
     const { default: Stats } = await import('three/addons/libs/stats.module.js');

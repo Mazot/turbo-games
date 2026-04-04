@@ -11,6 +11,12 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
   private wobbleDir = 1;
   private baseScale = new THREE.Vector3(2.5, 2.5, 1);
 
+  /** Programmatically triggers the same bounce + wobble animation as a real click. */
+  triggerClickEffect(): void {
+    this.animProgress = 0;
+    this.wobbleDir *= -1;
+  }
+
   protected useCtx(ctx: CoreContext<ModulesRecord>) {
     const canvas = ctx.three.renderer.domElement;
 
@@ -37,11 +43,7 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
     if (this.animProgress < 0) {
       // Idle breathing
       const idle = 1 + 0.03 * Math.sin(ctx.time * 2);
-      this.object.scale.set(
-        this.baseScale.x * idle,
-        this.baseScale.y * idle,
-        this.baseScale.z,
-      );
+      this.object.scale.set(this.baseScale.x * idle, this.baseScale.y * idle, this.baseScale.z);
       this.object.rotation.z = 0.02 * Math.sin(ctx.time * 1.5);
       return;
     }
@@ -60,11 +62,7 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
     const bounce = 1 + 0.35 * Math.sin(t * Math.PI);
     const wobble = this.wobbleDir * 0.15 * Math.sin(t * Math.PI);
 
-    this.object.scale.set(
-      this.baseScale.x * bounce,
-      this.baseScale.y * bounce,
-      this.baseScale.z,
-    );
+    this.object.scale.set(this.baseScale.x * bounce, this.baseScale.y * bounce, this.baseScale.z);
     this.object.rotation.z = wobble;
   }
 }
