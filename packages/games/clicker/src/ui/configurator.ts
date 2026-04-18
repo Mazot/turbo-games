@@ -21,7 +21,7 @@ export class ConfiguratorPanel {
   private root: HTMLDivElement;
   private contentEl!: HTMLDivElement;
   private tabEl!: HTMLButtonElement;
-  private visible = true;
+  private visible = false;
 
   constructor(
     private state: GameState,
@@ -59,12 +59,14 @@ export class ConfiguratorPanel {
     title.textContent = '⚙️ Configurator';
     this.contentEl.appendChild(title);
 
+    this.contentEl.appendChild(this.buildSection('🎁 Cheats', this.buildCheatsSection()));
     this.contentEl.appendChild(this.buildSection('🎨 Assets', this.buildAssetsSection()));
     this.contentEl.appendChild(this.buildSection('🖼️ Backgrounds', this.buildBgsTable()));
     this.contentEl.appendChild(this.buildSection('⚡ Boost', this.buildBoostFields()));
     this.contentEl.appendChild(this.buildSection('🤖 Auto-click', this.buildAutoclickFields()));
     this.contentEl.appendChild(this.buildSection('🎰 Roulette', this.buildRouletteSection()));
 
+    this.contentEl.style.display = 'none';
     this.root.append(this.tabEl, this.contentEl);
   }
 
@@ -196,6 +198,33 @@ export class ConfiguratorPanel {
     });
 
     return table;
+  }
+
+  // ─── Cheats section ───────────────────────────────────────────────────────
+
+  private buildCheatsSection(): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'cfg-fields';
+
+    let giveAmount = 1_000;
+
+    const amountInput = this.makeNumberInput(giveAmount, 'cfg-num-wide', (v) => {
+      giveAmount = v;
+    });
+
+    const giveBtn = document.createElement('button');
+    giveBtn.className = 'cfg-input';
+    giveBtn.textContent = '💰 Give Points';
+    giveBtn.style.cssText = 'cursor: pointer; text-align: center; padding: 8px; background: rgba(80,200,120,0.12); border-color: rgba(80,200,120,0.4); color: #7dffaa;';
+    giveBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (giveAmount > 0) this.state.applyRouletteReward(giveAmount);
+    });
+
+    wrap.appendChild(this.makeLabeledField('Amount ⭐', amountInput));
+    wrap.appendChild(giveBtn);
+
+    return wrap;
   }
 
   // ─── Boost fields ─────────────────────────────────────────────────────────

@@ -17,6 +17,12 @@ export function createGameViteConfig(
 
   return defineConfig({
     base: '/turbo-games/',
+    server: {
+      watch: {
+        usePolling: true,
+        interval: 300,
+      },
+    },
     resolve: {
       alias: {
         '@turbo-games/renderer': path.resolve(coreDir, 'renderer/src'),

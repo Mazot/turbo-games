@@ -86,6 +86,15 @@ export class GameState {
     return points;
   }
 
+  /** Spend points directly (for purchasing bonuses). Returns false if not enough. */
+  spendPoints(amount: number): boolean {
+    if (this._score < amount) return false;
+    this._score -= amount;
+    this.events.emit('score:change', this._score);
+    this.save();
+    return true;
+  }
+
   buyAsset(index: number): boolean {
     if (index < 0 || index >= ASSETS.length) return false;
     if (this._unlockedAssets.has(index)) return false;

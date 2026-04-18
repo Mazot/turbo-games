@@ -5,7 +5,7 @@ import {
   createImageTexture,
   Object3DFeature,
 } from '@turbo-games/renderer';
-import { AdManager } from '@turbo-games/ads';
+import { AdManager, YandexAdsProvider } from '@turbo-games/ads';
 import { AnalyticsManager } from '@turbo-games/analytics';
 import { AudioManager } from '@turbo-games/audio';
 import { GameState } from './game-state';
@@ -29,6 +29,7 @@ async function main() {
   // State & services
   const state = new GameState();
   const adManager = new AdManager();
+  adManager.setProvider(new YandexAdsProvider(), { appId: '', testMode: import.meta.env.DEV });
   const analytics = new AnalyticsManager();
   const MUSIC_PREF_KEY = 'turbo-clicker-music';
   let musicEnabled = localStorage.getItem(MUSIC_PREF_KEY) !== 'false';
@@ -37,6 +38,9 @@ async function main() {
   const audio = new AudioManager();
   audio.register('click', { src: 'assets/sfx/click.wav', volume: 0.5 });
   audio.register('music', { src: MUSIC_CONFIG.src, volume: MUSIC_CONFIG.volume, loop: true });
+
+  // Apply saved mute preference immediately (before first gesture)
+  if (!musicEnabled) audio.mute(true);
 
   function tryPlayMusic() {
     musicUnlocked = true;
@@ -78,39 +82,27 @@ async function main() {
     const imgAspect = iw / ih;
     const scAspect = screenW / screenH;
 
-    bgCtx.clearRect(0, 0, screenW, screenH);
-
-    // Layer 1: blurred cover-scaled image (fills bars area)
-    const blur = 28;
-    bgCtx.save();
-    bgCtx.filter = `blur(${blur}px)`;
-    let bw: number, bh: number, bx: number, by: number;
-    if (scAspect > imgAspect) {
-      // Screen wider than image: scale to fit width for cover
-      bw = screenW + blur * 4;
-      bh = bw / imgAspect;
-      bx = -blur * 2;
-      by = (screenH - bh) / 2;
-    } else {
-      // Screen taller than image: scale to fit height for cover
-      bh = screenH + blur * 4;
-      bw = bh * imgAspect;
-      by = -blur * 2;
-      bx = (screenW - bw) / 2;
-    }
-    bgCtx.drawImage(img, bx, by, bw, bh);
-    bgCtx.restore();
-
-    // Layer 2: dark overlay over bars
-    bgCtx.fillStyle = 'rgba(0,0,0,0.35)';
+    // Clear to black (visible as bars when screen is wider than image)
+    bgCtx.fillStyle = '#000';
     bgCtx.fillRect(0, 0, screenW, screenH);
 
-    // Layer 3: sharp fit-to-width image centered vertically
-    const scale = screenW / iw;
-    const drawH = ih * scale;
-    const drawY = (screenH - drawH) / 2;
-    bgCtx.drawImage(img, 0, drawY, screenW, drawH);
+    let dw: number, dh: number, dx: number, dy: number;
 
+    if (scAspect <= imgAspect) {
+      // Screen narrower than image: fit to height, crop width
+      dh = screenH;
+      dw = dh * imgAspect;
+      dx = (screenW - dw) / 2; // center horizontally (crops sides)
+      dy = 0;
+    } else {
+      // Screen wider than image: fit to width, black bars top/bottom
+      dw = screenW;
+      dh = dw / imgAspect;
+      dx = 0;
+      dy = (screenH - dh) / 2; // center vertically
+    }
+
+    bgCtx.drawImage(img, dx, dy, dw, dh);
     currentBgTex!.needsUpdate = true;
   }
 
@@ -124,30 +116,62 @@ async function main() {
     img.src = bg.image;
   }
 
+  // Sprite occupies 70% of visible screen height, bottom-aligned to the screen edge.
+  const SPRITE_SCREEN_RATIO = 0.7;
+
+  function getVisibleHeight(): number {
+    const fovRad = (game.camera.fov * Math.PI) / 180;
+    return 2 * Math.tan(fovRad / 2) * game.camera.position.z;
+  }
+
+  function getSpriteHeight(): number {
+    return getVisibleHeight() * SPRITE_SCREEN_RATIO;
+  }
+
+  /** Returns the Y position that places the sprite's bottom edge at the screen bottom. */
+  function getSpriteBottomY(spriteH: number): number {
+    return -getVisibleHeight() / 2 + spriteH / 2;
+  }
+
+  let clickTarget: ClickTarget | null = null;
+
+  /** Recalculates and applies sprite scale + position from the current frustum size. */
+  function applySpriteLayout(): void {
+    const h = getSpriteHeight();
+    sprite.scale.set(h, h, 1);
+    sprite.position.y = getSpriteBottomY(h);
+    clickTarget?.setBaseScale(h, h);
+  }
+
   game.ctx.three.on('resize', (w: number, h: number) => {
     screenW = w;
     screenH = h;
     drawBackground();
+    applySpriteLayout();
   });
   applyBackground(state.currentBackground);
 
-  // Clickable sprite — texture reflects current asset at its current level
+  const initH = getSpriteHeight();
+
   const material = new THREE.SpriteMaterial({
     map: createImageTexture(
       ASSETS[state.currentAsset].levels[state.getAssetLevel(state.currentAsset)].image,
+      1024,
+      () => applySpriteLayout(),
     ),
     transparent: true,
   });
+
   const sprite = new THREE.Sprite(material);
-  sprite.position.set(0, -0.3, 0);
-  sprite.scale.set(5, 5, 1);
+  sprite.scale.set(initH, initH, 1);
+  sprite.position.set(0, getSpriteBottomY(initH), 0);
 
   /** Reloads the sprite texture to match the active asset and its current level. */
   const updateSpriteTexture = () => {
     const lvl = state.getAssetLevel(state.currentAsset);
     const img = ASSETS[state.currentAsset].levels[lvl].image;
     material.map?.dispose();
-    material.map = createImageTexture(img);
+    material.map = createImageTexture(img, 1024, () => applySpriteLayout());
     material.needsUpdate = true;
   };
 
@@ -157,11 +181,20 @@ async function main() {
   });
   state.events.on('background:change', (index) => applyBackground(index));
 
-  const clickTarget = addGameFeature(sprite, ClickTarget);
+  clickTarget = addGameFeature(sprite, ClickTarget);
   clickTarget.onClicked = () => {
     audio.play('click');
     const points = state.click();
-    ui.showFloatText(points);
+    const feverMulti = ui.registerClick();
+    // Award bonus clicks from fever (extra points, no extra state.click())
+    const totalPoints = points * feverMulti;
+    if (feverMulti > 1) {
+      // Add the extra points directly to score
+      for (let i = 1; i < feverMulti; i++) {
+        state.click();
+      }
+    }
+    ui.showFloatText(totalPoints);
   };
 
   game.root.add(sprite);
@@ -173,16 +206,16 @@ async function main() {
   // reproducing the same feedback as a real player click.
   ui.onAutoClickEffect = () => {
     audio.play('click');
-    clickTarget.triggerClickEffect();
+    clickTarget?.triggerClickEffect();
   };
 
   ui.onMusicToggle = () => {
     musicEnabled = !musicEnabled;
     localStorage.setItem(MUSIC_PREF_KEY, String(musicEnabled));
-    if (musicEnabled) {
-      if (musicUnlocked) audio.play('music');
-    } else {
-      audio.stop('music');
+    audio.mute(!musicEnabled);
+    if (musicEnabled && !musicUnlocked) {
+      musicUnlocked = true;
+      audio.play('music');
     }
   };
 

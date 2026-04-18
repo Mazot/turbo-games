@@ -9,11 +9,26 @@ export class GameUI {
   private scoreEl!: HTMLElement;
   private ppcEl!: HTMLElement;
   private boostEl!: HTMLElement;
+  private autoclickEl!: HTMLElement;
+  private statusBubbles!: HTMLElement;
   private shopOverlay: HTMLDivElement | null = null;
   private boostInterval: ReturnType<typeof setInterval> | null = null;
-  private autoclickEl!: HTMLElement;
   private autoclickInterval: ReturnType<typeof setInterval> | null = null;
   private rouletteModal: RouletteModal;
+
+  // Click fever system
+  private feverBarEl!: HTMLElement;
+  private feverFillEl!: HTMLElement;
+  private feverGlowEl!: HTMLElement;
+  private feverParticlesEl!: HTMLElement;
+  private feverConfettiEl!: HTMLElement;
+  private feverMeter = 0; // 0..1
+  private feverClickTimes: number[] = [];
+  private feverDecayInterval: ReturnType<typeof setInterval> | null = null;
+
+  // Golden sparkle gradient at the bottom edge (masks sprite cut-off)
+  private goldGlowEl!: HTMLElement;
+  private goldSparkleInterval: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Optional callback fired on each auto-click tick.
@@ -27,6 +42,19 @@ export class GameUI {
 
   private musicEnabled: boolean;
   private musicBtn!: HTMLButtonElement;
+
+  // Bottom bar buttons (kept for affordability glow updates)
+  private btnAd!: HTMLButtonElement;
+  private btnAutoclick!: HTMLButtonElement;
+  private btnAssets!: HTMLButtonElement;
+  private btnBgs!: HTMLButtonElement;
+
+  // Upgrade prompt
+  private upgradePromptEl: HTMLElement | null = null;
+  private upgradePromptDismissed = -1; // index of upgrade cost already prompted
+
+  // Choice popup (bonus/autoclick buy or watch ad)
+  private choicePopupEl: HTMLElement | null = null;
 
   constructor(
     private state: GameState,
@@ -46,6 +74,7 @@ export class GameUI {
     this.updateScore();
     this.startBoostTimer();
     this.startAutoclickTimer();
+    this.startFeverDecay();
   }
 
   showFloatText(points: number): void {
@@ -62,6 +91,11 @@ export class GameUI {
   destroy(): void {
     if (this.boostInterval !== null) clearInterval(this.boostInterval);
     if (this.autoclickInterval !== null) clearInterval(this.autoclickInterval);
+    if (this.feverDecayInterval !== null) clearInterval(this.feverDecayInterval);
+    if (this.goldSparkleInterval !== null) clearInterval(this.goldSparkleInterval);
+    this.goldGlowEl.remove();
+    this.closeChoicePopup();
+    this.closeUpgradePrompt();
     this.rouletteModal.close();
     this.root.remove();
     const style = document.getElementById('game-ui-styles');
@@ -75,19 +109,35 @@ export class GameUI {
     scorePanel.append(this.scoreEl, this.ppcEl);
 
     this.boostEl = makeEl('div', 'boost-indicator hidden');
-
     this.autoclickEl = makeEl('div', 'autoclick-indicator hidden');
+    this.statusBubbles = makeEl('div', 'status-bubbles');
+    this.statusBubbles.append(this.boostEl, this.autoclickEl);
+
+    // Fever bar
+    this.feverBarEl = makeEl('div', 'fever-bar');
+    this.feverFillEl = makeEl('div', 'fever-fill');
+    this.feverGlowEl = makeEl('div', 'fever-glow');
+    this.feverParticlesEl = makeEl('div', 'fever-particles');
+    this.feverConfettiEl = makeEl('div', 'fever-confetti');
+    this.feverBarEl.append(this.feverFillEl, this.feverGlowEl, this.feverParticlesEl);
+
+    // Golden sparkle gradient — appended directly to body to guarantee it sits above the WebGPU canvas
+    this.goldGlowEl = makeEl('div', 'gold-glow');
+    const goldSparklesEl = makeEl('div', 'gold-sparkles');
+    this.goldGlowEl.appendChild(goldSparklesEl);
+    this.startGoldSparkles(goldSparklesEl);
+    document.body.appendChild(this.goldGlowEl);
 
     const floatContainer = makeEl('div', 'float-container');
     floatContainer.id = 'float-container';
 
     const bottomBar = makeEl('div', 'bottom-bar');
-    const btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () => this.onAdClick());
-    const btnAutoclick = this.makeButton('🤖 Auto-click', () => this.onAutoclickAdClick());
-    const btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
-    const btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
+    this.btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () => this.showBonusChoice());
+    this.btnAutoclick = this.makeButton('🤖 Auto-click', () => this.showAutoclickChoice());
+    this.btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
+    this.btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
     const btnRoulette = this.makeButton('🎰 Roulette', () => this.rouletteModal.open());
-    bottomBar.append(btnAd, btnAutoclick, btnAssets, btnBgs, btnRoulette);
+    bottomBar.append(this.btnAd, this.btnAutoclick, this.btnAssets, this.btnBgs, btnRoulette);
 
     this.musicBtn = document.createElement('button');
     this.musicBtn.className = 'music-btn';
@@ -102,8 +152,9 @@ export class GameUI {
 
     this.root.append(
       scorePanel,
-      this.boostEl,
-      this.autoclickEl,
+      this.statusBubbles,
+      this.feverBarEl,
+      this.feverConfettiEl,
       floatContainer,
       bottomBar,
       this.musicBtn,
@@ -128,6 +179,8 @@ export class GameUI {
   private updateScore(): void {
     this.scoreEl.textContent = `⭐ ${formatNumber(this.state.score)}`;
     this.ppcEl.textContent = `+${this.state.pointsPerClick} per click`;
+    this.updateAffordabilityGlows();
+    this.checkUpgradePrompt();
   }
 
   private startBoostTimer(): void {
@@ -143,29 +196,212 @@ export class GameUI {
     }, 250);
   }
 
-  private async onAdClick(): Promise<void> {
-    if (this.state.boostActive) return;
+  // ── Bonus / Autoclick Choice Popup ──────────────────────────────
 
-    if (this.adManager.isAvailable('rewarded')) {
-      const success = await this.adManager.show('rewarded');
-      if (success) this.state.activateBoost();
-    } else {
-      // Dev mode: activate boost without ads
-      this.state.activateBoost();
-    }
+  private showBonusChoice(): void {
+    if (this.state.boostActive) return;
+    this.showChoicePopup({
+      title: `🔥 Bonus x${BOOST_CONFIG.multiplier}`,
+      cost: BOOST_CONFIG.cost,
+      canAfford: this.state.score >= BOOST_CONFIG.cost,
+      onAd: async () => {
+        const success = await this.adManager.show('rewarded');
+        if (success || !this.adManager.isAvailable('rewarded')) this.state.activateBoost();
+      },
+      onBuy: () => {
+        if (this.state.score >= BOOST_CONFIG.cost) {
+          this.state.spendPoints(BOOST_CONFIG.cost);
+          this.state.activateBoost();
+        }
+      },
+    });
   }
 
-  /** Triggers a rewarded ad then starts the auto-click timer. */
-  private async onAutoclickAdClick(): Promise<void> {
+  private showAutoclickChoice(): void {
     if (this.state.autoclickActive) return;
+    this.showChoicePopup({
+      title: '🤖 Auto-click',
+      cost: AUTOCLICK_CONFIG.cost,
+      canAfford: this.state.score >= AUTOCLICK_CONFIG.cost,
+      onAd: async () => {
+        const success = await this.adManager.show('rewarded');
+        if (success || !this.adManager.isAvailable('rewarded')) this.state.activateAutoclick();
+      },
+      onBuy: () => {
+        if (this.state.score >= AUTOCLICK_CONFIG.cost) {
+          this.state.spendPoints(AUTOCLICK_CONFIG.cost);
+          this.state.activateAutoclick();
+        }
+      },
+    });
+  }
 
-    if (this.adManager.isAvailable('rewarded')) {
-      const success = await this.adManager.show('rewarded');
-      if (success) this.state.activateAutoclick();
-    } else {
-      // Dev mode: activate autoclick without ads
-      this.state.activateAutoclick();
-    }
+  private showChoicePopup(opts: {
+    title: string;
+    cost: number;
+    canAfford: boolean;
+    onAd: () => Promise<void>;
+    onBuy: () => void;
+  }): void {
+    this.closeChoicePopup();
+
+    const popup = makeEl('div', 'choice-popup');
+    const title = makeEl('div', 'choice-popup-title');
+    title.textContent = opts.title;
+
+    const btnAd = document.createElement('button');
+    btnAd.className = 'choice-btn choice-btn-ad';
+    btnAd.textContent = '📺 Смотреть рекламу';
+    btnAd.disabled = true; // prevent tap-through
+
+    const btnBuy = document.createElement('button');
+    btnBuy.className = `choice-btn choice-btn-buy${opts.canAfford ? '' : ' locked'}`;
+    btnBuy.textContent = `⭐ Купить за ${formatNumber(opts.cost)}`;
+    btnBuy.disabled = true;
+
+    const btnClose = document.createElement('button');
+    btnClose.className = 'choice-close';
+    btnClose.textContent = '✕';
+
+    popup.append(title, btnAd, btnBuy, btnClose);
+    this.root.appendChild(popup);
+    this.choicePopupEl = popup;
+
+    // Delay to avoid accidental taps (400ms)
+    const enableAt = Date.now() + 400;
+
+    const tryEnable = () => {
+      if (Date.now() >= enableAt) {
+        btnAd.disabled = false;
+        btnBuy.disabled = !opts.canAfford;
+      } else {
+        requestAnimationFrame(tryEnable);
+      }
+    };
+    requestAnimationFrame(tryEnable);
+
+    btnAd.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (btnAd.disabled) return;
+      this.closeChoicePopup();
+      opts.onAd();
+    });
+
+    btnBuy.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (btnBuy.disabled || !opts.canAfford) return;
+      this.closeChoicePopup();
+      opts.onBuy();
+    });
+
+    btnClose.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.closeChoicePopup();
+    });
+
+    // Close on outside tap
+    setTimeout(() => {
+      const outsideHandler = (e: PointerEvent) => {
+        if (!popup.contains(e.target as Node)) {
+          this.closeChoicePopup();
+          document.removeEventListener('pointerdown', outsideHandler);
+        }
+      };
+      document.addEventListener('pointerdown', outsideHandler);
+    }, 450);
+  }
+
+  private closeChoicePopup(): void {
+    this.choicePopupEl?.remove();
+    this.choicePopupEl = null;
+  }
+
+  // ── Upgrade Prompt ───────────────────────────────────────────────
+
+  private checkUpgradePrompt(): void {
+    const asset = ASSETS[this.state.currentAsset];
+    const lvl = this.state.getAssetLevel(this.state.currentAsset);
+    const maxLevel = asset.levels.length - 1;
+    if (lvl >= maxLevel) return;
+
+    const cost = asset.levels[lvl + 1].upgradeCost;
+    if (this.state.score < cost) return;
+    if (this.upgradePromptDismissed === cost) return;
+    if (this.upgradePromptEl) return;
+
+    this.upgradePromptDismissed = cost;
+
+    const toast = makeEl('div', 'upgrade-toast');
+    toast.innerHTML = `
+      <span class="upgrade-toast-text">⬆️ Прокачай ${asset.name}!</span>
+      <button class="upgrade-toast-btn">Апгрейд</button>
+      <button class="upgrade-toast-dismiss">✕</button>
+    `;
+    this.root.appendChild(toast);
+    this.upgradePromptEl = toast;
+
+    const upgradeBtn = toast.querySelector('.upgrade-toast-btn') as HTMLButtonElement;
+    const dismissBtn = toast.querySelector('.upgrade-toast-dismiss') as HTMLButtonElement;
+
+    // Delay buttons to prevent tap-through
+    upgradeBtn.disabled = true;
+    dismissBtn.disabled = true;
+    setTimeout(() => {
+      upgradeBtn.disabled = false;
+      dismissBtn.disabled = false;
+    }, 500);
+
+    upgradeBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (upgradeBtn.disabled) return;
+      this.closeUpgradePrompt();
+      if (this.state.upgradeAsset(this.state.currentAsset)) {
+        // refresh affordability
+        this.updateAffordabilityGlows();
+      }
+    });
+
+    dismissBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      this.closeUpgradePrompt();
+    });
+
+    // Auto-dismiss after 5s
+    setTimeout(() => this.closeUpgradePrompt(), 5_000);
+  }
+
+  private closeUpgradePrompt(): void {
+    this.upgradePromptEl?.remove();
+    this.upgradePromptEl = null;
+  }
+
+  // ── Affordability Glows ──────────────────────────────────────────
+
+  private updateAffordabilityGlows(): void {
+    const score = this.state.score;
+
+    // Assets button: glow if can afford any upgrade/unlock
+    const canAffordAsset = ASSETS.some((asset, i) => {
+      if (!this.state.isAssetUnlocked(i)) return score >= asset.unlockCost;
+      const lvl = this.state.getAssetLevel(i);
+      return lvl < asset.levels.length - 1 && score >= asset.levels[lvl + 1].upgradeCost;
+    });
+    this.btnAssets.classList.toggle('btn-can-afford', canAffordAsset);
+
+    // Backgrounds button: glow if can afford any bg
+    const canAffordBg = BACKGROUNDS_ASSETS.some((bg, i) =>
+      !this.state.isBackgroundUnlocked(i) && score >= bg.cost,
+    );
+    this.btnBgs.classList.toggle('btn-can-afford', canAffordBg);
+
+    // Bonus button: glow if can afford purchase
+    this.btnAd.classList.toggle('btn-can-afford', !this.state.boostActive && score >= BOOST_CONFIG.cost);
+
+    // Autoclick button: glow if can afford purchase
+    this.btnAutoclick.classList.toggle(
+      'btn-can-afford',
+      !this.state.autoclickActive && score >= AUTOCLICK_CONFIG.cost,
+    );
   }
 
   /** Runs auto-click ticks and shows/hides the indicator. */
@@ -390,16 +626,175 @@ export class GameUI {
     }
   }
 
+  // ── Gold Sparkle Effect ────────────────────────────────────────
+
+  /** Spawns animated sparkle particles rising from the bottom gold gradient. */
+  private startGoldSparkles(container: HTMLElement): void {
+    this.goldSparkleInterval = setInterval(() => {
+      const sparkle = document.createElement('div');
+      sparkle.className = 'gold-sparkle-particle';
+      sparkle.style.left = `${Math.random() * 100}%`;
+      sparkle.style.animationDuration = `${1.2 + Math.random() * 1.0}s`;
+      sparkle.style.animationDelay = `${Math.random() * 0.3}s`;
+      sparkle.style.fontSize = `${6 + Math.random() * 8}px`;
+      sparkle.style.opacity = `${0.5 + Math.random() * 0.5}`;
+      container.appendChild(sparkle);
+      sparkle.addEventListener('animationend', () => sparkle.remove());
+    }, 120);
+  }
+
+  // ── Click Fever System ──────────────────────────────────────────
+
+  /**
+   * Called on every click to feed the fever meter.
+   * Returns a bonus multiplier (1 = normal, 2 = double, 3 = triple)
+   * based on the current fever level. Higher fever = more chance of bonus.
+   */
+  registerClick(): number {
+    const now = Date.now();
+    this.feverClickTimes.push(now);
+    // Keep only clicks from last 2 seconds
+    const window = 2000;
+    this.feverClickTimes = this.feverClickTimes.filter(t => now - t < window);
+
+    // CPS-based fill: 8+ clicks/sec = full meter
+    const cps = this.feverClickTimes.length / (window / 1000);
+    const target = Math.min(1, cps / 8);
+    this.feverMeter = Math.min(1, this.feverMeter + (target - this.feverMeter) * 0.4 + 0.04);
+    this.updateFeverUI();
+
+    // Spawn heart on character
+    this.spawnHeart();
+
+    // High fever effects
+    if (this.feverMeter > 0.7) {
+      this.spawnConfetti();
+    }
+
+    // Bonus multiplier from fever (starts at 50% meter)
+    let multi = 1;
+    if (this.feverMeter >= 0.5) {
+      const luck = Math.random();
+      // Chance scales with fever: at 50% → 15% x2, at 100% → 50% x2 + 15% x3
+      const fever = (this.feverMeter - 0.5) * 2; // 0..1 within bonus range
+      const tripleChance = fever * 0.15;
+      const doubleChance = fever * 0.35 + 0.15;
+      if (luck < tripleChance) {
+        multi = 3;
+      } else if (luck < doubleChance) {
+        multi = 2;
+      }
+    }
+
+    if (multi > 1) {
+      this.showMultiText(multi);
+    }
+
+    return multi;
+  }
+
+  /** Shows a "x2!" or "x3!" indicator near the fever bar. */
+  private showMultiText(multi: number): void {
+    const container = this.root.querySelector('#float-container')!;
+    const el = document.createElement('div');
+    el.className = `fever-multi fever-multi-${multi}`;
+    el.textContent = `x${multi}!`;
+    el.style.left = `calc(50% + ${(Math.random() - 0.5) * 60}px)`;
+    container.appendChild(el);
+    el.addEventListener('animationend', () => el.remove());
+  }
+
+  private startFeverDecay(): void {
+    this.feverDecayInterval = setInterval(() => {
+      if (this.feverMeter > 0) {
+        this.feverMeter = Math.max(0, this.feverMeter - 0.025);
+        this.updateFeverUI();
+      }
+    }, 50);
+  }
+
+  private updateFeverUI(): void {
+    const pct = this.feverMeter * 100;
+    this.feverFillEl.style.width = `${pct}%`;
+
+    // Color transitions: green → yellow → orange → pink/red
+    let color: string;
+    if (this.feverMeter < 0.3) {
+      color = 'linear-gradient(90deg, #43e97b, #38f9d7)';
+    } else if (this.feverMeter < 0.6) {
+      color = 'linear-gradient(90deg, #f9d423, #ff4e50)';
+    } else {
+      color = 'linear-gradient(90deg, #ff4e50, #f9076d, #ff6ec7)';
+    }
+    this.feverFillEl.style.background = color;
+
+    // Glow intensity
+    this.feverGlowEl.style.opacity = String(this.feverMeter > 0.5 ? (this.feverMeter - 0.5) * 2 : 0);
+
+    // Bar pulse class
+    this.feverBarEl.classList.toggle('fever-active', this.feverMeter > 0.5);
+    this.feverBarEl.classList.toggle('fever-max', this.feverMeter > 0.9);
+
+    // Spawn heart particles on the bar at high levels
+    if (this.feverMeter > 0.5 && Math.random() < this.feverMeter * 0.4) {
+      this.spawnBarParticle();
+    }
+  }
+
+  private spawnHeart(): void {
+    const container = this.root.querySelector('#float-container')!;
+    const heart = document.createElement('div');
+    heart.className = 'click-heart';
+    heart.textContent = Math.random() < 0.7 ? '❤️' : (Math.random() < 0.5 ? '💖' : '✨');
+    const offsetX = (Math.random() - 0.5) * 120;
+    heart.style.left = `calc(50% + ${offsetX}px)`;
+    heart.style.bottom = `${30 + Math.random() * 10}%`;
+    container.appendChild(heart);
+    heart.addEventListener('animationend', () => heart.remove());
+  }
+
+  private spawnBarParticle(): void {
+    const particle = document.createElement('div');
+    particle.className = 'fever-heart-particle';
+    particle.textContent = Math.random() < 0.5 ? '❤️' : '💖';
+    particle.style.left = `${this.feverMeter * 90 + Math.random() * 10}%`;
+    this.feverParticlesEl.appendChild(particle);
+    particle.addEventListener('animationend', () => particle.remove());
+  }
+
+  private spawnConfetti(): void {
+    const count = this.feverMeter > 0.9 ? 4 : 2;
+    for (let i = 0; i < count; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'confetti-piece';
+      const shapes = ['🎉', '🎊', '⭐', '✨', '💫', '❤️'];
+      piece.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+      piece.style.left = `${Math.random() * 100}%`;
+      piece.style.animationDuration = `${1.5 + Math.random() * 1.5}s`;
+      piece.style.animationDelay = `${Math.random() * 0.3}s`;
+      this.feverConfettiEl.appendChild(piece);
+      piece.addEventListener('animationend', () => piece.remove());
+    }
+  }
+
+  // ── State Events ───────────────────────────────────────────────
+
   private bindStateEvents(): void {
     this.state.events.on('score:change', () => this.updateScore());
+    this.state.events.on('asset:change', () => {
+      this.upgradePromptDismissed = -1;
+      this.closeUpgradePrompt();
+      this.updateAffordabilityGlows();
+    });
+    this.state.events.on('asset:level:change', () => {
+      this.upgradePromptDismissed = -1;
+      this.closeUpgradePrompt();
+      this.updateAffordabilityGlows();
+    });
   }
 
   private injectStyles(): void {
-    if (document.getElementById('game-ui-styles')) return;
-    const style = document.createElement('style');
-    style.id = 'game-ui-styles';
-    style.textContent = UI_CSS;
-    document.head.appendChild(style);
+    // Styles are injected at module level; nothing to do here.
   }
 }
 
@@ -443,15 +838,24 @@ const UI_CSS = /* css */ `
     display: block;
   }
 
-  .boost-indicator {
+  .status-bubbles {
     position: absolute;
-    top: 100px;
-    left: 24px;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    align-items: center;
+    pointer-events: none;
+  }
+
+  .boost-indicator {
     background: linear-gradient(135deg, rgba(255,80,0,0.9), rgba(255,160,0,0.9));
     color: #fff;
-    padding: 8px 24px;
+    padding: 8px 20px;
     border-radius: 24px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     animation: boostPulse 1s ease-in-out infinite;
     box-shadow: 0 0 20px rgba(255,100,0,0.4);
@@ -461,14 +865,11 @@ const UI_CSS = /* css */ `
   .boost-indicator.hidden { display: none; }
 
   .autoclick-indicator {
-    position: absolute;
-    top: 140px;
-    left: 24px;
     background: linear-gradient(135deg, rgba(0,140,255,0.9), rgba(0,200,255,0.9));
     color: #fff;
-    padding: 8px 24px;
+    padding: 8px 20px;
     border-radius: 24px;
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     animation: boostPulse 1s ease-in-out infinite;
     box-shadow: 0 0 20px rgba(0,140,255,0.4);
@@ -753,4 +1154,377 @@ const UI_CSS = /* css */ `
     color: rgba(255, 255, 255, 0.25);
     cursor: not-allowed;
   }
+
+  /* ── Click Fever Bar ─────────────────────────────────── */
+
+  .fever-bar {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(180px, 40vw);
+    height: 22px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    overflow: visible;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .fever-fill {
+    height: 100%;
+    width: 0%;
+    border-radius: 14px;
+    transition: width 0.08s linear, background 0.3s;
+    background: linear-gradient(90deg, #43e97b, #38f9d7);
+    position: relative;
+  }
+
+  .fever-glow {
+    position: absolute;
+    inset: -4px;
+    border-radius: 14px;
+    opacity: 0;
+    background: radial-gradient(ellipse at center, rgba(255, 100, 150, 0.5), transparent 70%);
+    filter: blur(8px);
+    transition: opacity 0.2s;
+    pointer-events: none;
+  }
+
+  .fever-bar.fever-active {
+    animation: feverPulse 0.5s ease-in-out infinite;
+    border-color: rgba(255, 150, 200, 0.4);
+  }
+
+  .fever-bar.fever-max {
+    animation: feverShake 0.15s ease-in-out infinite;
+    border-color: rgba(255, 50, 100, 0.7);
+    box-shadow: 0 0 20px rgba(255, 50, 100, 0.4), 0 0 40px rgba(255, 50, 100, 0.2);
+  }
+
+  @keyframes feverPulse {
+    0%, 100% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(1.03); }
+  }
+
+  @keyframes feverShake {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    25% { transform: translateX(calc(-50% + 2px)) translateY(-1px); }
+    75% { transform: translateX(calc(-50% - 2px)) translateY(1px); }
+  }
+
+  .fever-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .fever-heart-particle {
+    position: absolute;
+    bottom: 100%;
+    font-size: 14px;
+    animation: heartFloat 0.8s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes heartFloat {
+    0% { opacity: 1; transform: translateY(0) scale(0.6); }
+    100% { opacity: 0; transform: translateY(-40px) scale(1.2); }
+  }
+
+  /* ── Hearts on character ─────────────────────────────── */
+
+  .click-heart {
+    position: absolute;
+    font-size: 22px;
+    animation: heartRise 0.9s ease-out forwards;
+    pointer-events: none !important;
+  }
+
+  @keyframes heartRise {
+    0% { opacity: 1; transform: translateY(0) scale(0.5) rotate(0deg); }
+    50% { opacity: 1; transform: translateY(-50px) scale(1.1) rotate(15deg); }
+    100% { opacity: 0; transform: translateY(-100px) scale(0.8) rotate(-10deg); }
+  }
+
+  /* ── Confetti from top ───────────────────────────────── */
+
+  .fever-confetti {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none !important;
+    z-index: 50;
+  }
+
+  .fever-confetti * {
+    pointer-events: none !important;
+  }
+
+  .confetti-piece {
+    position: absolute;
+    top: -30px;
+    font-size: 24px;
+    animation: confettiFall 2s ease-in forwards;
+    pointer-events: none;
+  }
+
+  @keyframes confettiFall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg) scale(1); }
+    30% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(calc(100vh + 40px)) rotate(720deg) scale(0.4); }
+  }
+
+  /* ── Affordability glow on bottom bar buttons ───────── */
+
+  .bar-btn.btn-can-afford {
+    border-color: rgba(255, 215, 0, 0.6);
+    box-shadow: 0 0 14px rgba(255, 215, 0, 0.35), 0 0 4px rgba(255, 215, 0, 0.2);
+    animation: affordPulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes affordPulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.3); border-color: rgba(255,215,0,0.4); }
+    50% { box-shadow: 0 0 22px rgba(255, 215, 0, 0.6); border-color: rgba(255,215,0,0.8); }
+  }
+
+  /* ── Choice popup (bonus/autoclick buy or ad) ────────── */
+
+  .choice-popup {
+    position: absolute;
+    bottom: 80px;
+    left: 24px;
+    background: rgba(18, 18, 32, 0.97);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 20px;
+    padding: 18px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 200px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    animation: popupIn 0.2s ease-out;
+    z-index: 150;
+    pointer-events: auto;
+  }
+
+  @keyframes popupIn {
+    from { opacity: 0; transform: translateY(12px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .choice-popup-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+  }
+
+  .choice-btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+
+  .choice-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .choice-btn:not(:disabled):active { transform: scale(0.97); }
+
+  .choice-btn-ad {
+    background: linear-gradient(135deg, rgba(100,180,255,0.25), rgba(0,120,255,0.3));
+    color: #7ec8ff;
+    border: 1px solid rgba(100,180,255,0.3);
+  }
+
+  .choice-btn-buy {
+    background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,160,0,0.25));
+    color: #ffd700;
+    border: 1px solid rgba(255,215,0,0.3);
+  }
+
+  .choice-btn-buy.locked {
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.3);
+    border-color: rgba(255,255,255,0.1);
+  }
+
+  .choice-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.4);
+    font-size: 16px;
+    cursor: pointer;
+    align-self: center;
+    padding: 0 8px;
+    line-height: 1;
+  }
+
+  /* ── Upgrade toast ───────────────────────────────────── */
+
+  .upgrade-toast {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(18, 18, 32, 0.97);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 215, 0, 0.35);
+    border-radius: 18px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 0 20px rgba(255,215,0,0.2), 0 8px 30px rgba(0,0,0,0.5);
+    animation: toastIn 0.25s ease-out;
+    z-index: 150;
+    pointer-events: auto;
+    white-space: nowrap;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  }
+
+  .upgrade-toast-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #ffd700;
+  }
+
+  .upgrade-toast-btn {
+    background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,160,0,0.3));
+    border: 1px solid rgba(255,215,0,0.4);
+    color: #ffd700;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: transform 0.1s;
+  }
+
+  .upgrade-toast-btn:not(:disabled):active { transform: scale(0.95); }
+  .upgrade-toast-btn:disabled { opacity: 0.4; }
+
+  .upgrade-toast-dismiss {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.4);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  }
+
+  /* ── Gold bottom glow (masks sprite cut-off) ────────── */
+
+  .gold-glow {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 100px;
+    background: linear-gradient(
+      to top,
+      rgb(255, 206, 73) 0%,
+      rgb(255, 237, 101) 25%,
+      transparent 100%
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .gold-sparkles {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .gold-sparkle-particle {
+    position: absolute;
+    bottom: 0;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 230, 120, 1), rgba(255, 200, 60, 0.6));
+    box-shadow: 0 0 4px rgba(255, 215, 0, 0.8), 0 0 8px rgba(255, 180, 0, 0.4);
+    animation: goldSparkleRise 1.5s ease-out forwards;
+    pointer-events: none;
+  }
+
+  @keyframes goldSparkleRise {
+    0% {
+      opacity: 0.8;
+      transform: translateY(0) scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-30px) scale(1.2);
+    }
+    100% {
+      opacity: 0;
+      transform: translateY(-70px) scale(0.4);
+    }
+  }
+
+  /* ── Fever multiplier popup ──────────────────────────── */
+
+  .fever-multi {
+    position: absolute;
+    bottom: 8%;
+    font-size: 32px;
+    font-weight: 900;
+    animation: multiPop 0.7s ease-out forwards;
+    pointer-events: none !important;
+    text-shadow: 0 0 16px currentColor, 0 2px 6px rgba(0,0,0,0.5);
+    letter-spacing: -1px;
+  }
+
+  .fever-multi-2 {
+    color: #ffdf00;
+  }
+
+  .fever-multi-3 {
+    color: #ff44cc;
+    font-size: 40px;
+  }
+
+  @keyframes multiPop {
+    0% { opacity: 1; transform: translateY(0) scale(0.5); }
+    30% { opacity: 1; transform: translateY(-20px) scale(1.4); }
+    100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+  }
 `;
+
+// Re-inject styles on every HMR update (runs at module evaluation time)
+document.getElementById('game-ui-styles')?.remove();
+const _style = document.createElement('style');
+_style.id = 'game-ui-styles';
+_style.textContent = UI_CSS;
+document.head.appendChild(_style);
+
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    document.getElementById('game-ui-styles')?.remove();
+    const s = document.createElement('style');
+    s.id = 'game-ui-styles';
+    s.textContent = UI_CSS;
+    document.head.appendChild(s);
+  });
+}
