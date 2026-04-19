@@ -60,13 +60,15 @@ export class GameState {
   }
 
   get pointsPerClick(): number {
-    const level = this._assetLevels[this._currentAsset];
+    const level = this.getAssetLevel(this._currentAsset);
     return ASSETS[this._currentAsset].levels[level].pointsPerClick * this.multiplier;
   }
 
   /** Returns the current upgrade level (0–5) of the given asset. */
   getAssetLevel(assetIndex: number): number {
-    return this._assetLevels[assetIndex] ?? 0;
+    const level = this._assetLevels[assetIndex] ?? 0;
+    const maxLevel = ASSETS[assetIndex]?.levels.length ? ASSETS[assetIndex].levels.length - 1 : 0;
+    return Math.min(level, maxLevel);
   }
 
   isAssetUnlocked(index: number): boolean {
@@ -234,8 +236,11 @@ export class GameState {
       if (!raw) return;
       const data = JSON.parse(raw) as SaveData;
       this._score = data.score ?? 0;
-      this._currentAsset = data.currentAsset ?? 0;
-      this._currentBackground = data.currentBackground ?? 0;
+      this._currentAsset = Math.min(data.currentAsset ?? 0, ASSETS.length - 1);
+      this._currentBackground = Math.min(
+        data.currentBackground ?? 0,
+        BACKGROUNDS_ASSETS.length - 1,
+      );
       this._assetLevels = Array.from(
         { length: ASSETS.length },
         (_, i) => data.assetLevels?.[i] ?? 0,

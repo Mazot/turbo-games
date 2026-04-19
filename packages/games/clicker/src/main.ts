@@ -134,9 +134,11 @@ async function main() {
   }
 
   let clickTarget: ClickTarget | null = null;
+  let sprite: THREE.Sprite | null = null;
 
   /** Recalculates and applies sprite scale + position from the current frustum size. */
   function applySpriteLayout(): void {
+    if (!sprite) return;
     const h = getSpriteHeight();
     sprite.scale.set(h, h, 1);
     sprite.position.y = getSpriteBottomY(h);
@@ -162,7 +164,7 @@ async function main() {
     transparent: true,
   });
 
-  const sprite = new THREE.Sprite(material);
+  sprite = new THREE.Sprite(material);
   sprite.scale.set(initH, initH, 1);
   sprite.position.set(0, getSpriteBottomY(initH), 0);
 

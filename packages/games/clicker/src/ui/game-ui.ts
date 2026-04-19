@@ -132,7 +132,9 @@ export class GameUI {
     floatContainer.id = 'float-container';
 
     const bottomBar = makeEl('div', 'bottom-bar');
-    this.btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () => this.showBonusChoice());
+    this.btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () =>
+      this.showBonusChoice(),
+    );
     this.btnAutoclick = this.makeButton('🤖 Auto-click', () => this.showAutoclickChoice());
     this.btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
     this.btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
@@ -389,13 +391,16 @@ export class GameUI {
     this.btnAssets.classList.toggle('btn-can-afford', canAffordAsset);
 
     // Backgrounds button: glow if can afford any bg
-    const canAffordBg = BACKGROUNDS_ASSETS.some((bg, i) =>
-      !this.state.isBackgroundUnlocked(i) && score >= bg.cost,
+    const canAffordBg = BACKGROUNDS_ASSETS.some(
+      (bg, i) => !this.state.isBackgroundUnlocked(i) && score >= bg.cost,
     );
     this.btnBgs.classList.toggle('btn-can-afford', canAffordBg);
 
     // Bonus button: glow if can afford purchase
-    this.btnAd.classList.toggle('btn-can-afford', !this.state.boostActive && score >= BOOST_CONFIG.cost);
+    this.btnAd.classList.toggle(
+      'btn-can-afford',
+      !this.state.boostActive && score >= BOOST_CONFIG.cost,
+    );
 
     // Autoclick button: glow if can afford purchase
     this.btnAutoclick.classList.toggle(
@@ -655,7 +660,7 @@ export class GameUI {
     this.feverClickTimes.push(now);
     // Keep only clicks from last 2 seconds
     const window = 2000;
-    this.feverClickTimes = this.feverClickTimes.filter(t => now - t < window);
+    this.feverClickTimes = this.feverClickTimes.filter((t) => now - t < window);
 
     // CPS-based fill: 8+ clicks/sec = full meter
     const cps = this.feverClickTimes.length / (window / 1000);
@@ -729,7 +734,9 @@ export class GameUI {
     this.feverFillEl.style.background = color;
 
     // Glow intensity
-    this.feverGlowEl.style.opacity = String(this.feverMeter > 0.5 ? (this.feverMeter - 0.5) * 2 : 0);
+    this.feverGlowEl.style.opacity = String(
+      this.feverMeter > 0.5 ? (this.feverMeter - 0.5) * 2 : 0,
+    );
 
     // Bar pulse class
     this.feverBarEl.classList.toggle('fever-active', this.feverMeter > 0.5);
@@ -745,7 +752,7 @@ export class GameUI {
     const container = this.root.querySelector('#float-container')!;
     const heart = document.createElement('div');
     heart.className = 'click-heart';
-    heart.textContent = Math.random() < 0.7 ? '❤️' : (Math.random() < 0.5 ? '💖' : '✨');
+    heart.textContent = Math.random() < 0.7 ? '❤️' : Math.random() < 0.5 ? '💖' : '✨';
     const offsetX = (Math.random() - 0.5) * 120;
     heart.style.left = `calc(50% + ${offsetX}px)`;
     heart.style.bottom = `${30 + Math.random() * 10}%`;
@@ -940,7 +947,7 @@ const UI_CSS = /* css */ `
 
   .bottom-bar {
     position: absolute;
-    bottom: 28px;
+    top: 130px;
     left: 24px;
     display: flex;
     flex-direction: column;
@@ -1159,7 +1166,7 @@ const UI_CSS = /* css */ `
 
   .fever-bar {
     position: absolute;
-    bottom: 12px;
+    top: 95px;
     left: 50%;
     transform: translateX(-50%);
     width: min(180px, 40vw);
@@ -1294,7 +1301,7 @@ const UI_CSS = /* css */ `
 
   .choice-popup {
     position: absolute;
-    bottom: 80px;
+    top: 400px;
     left: 24px;
     background: rgba(18, 18, 32, 0.97);
     backdrop-filter: blur(20px);
@@ -1375,9 +1382,10 @@ const UI_CSS = /* css */ `
 
   .upgrade-toast {
     position: absolute;
-    bottom: 80px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 95px;
+    right: 24px;
+    left: auto;
+    transform: none;
     background: rgba(18, 18, 32, 0.97);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
@@ -1395,8 +1403,8 @@ const UI_CSS = /* css */ `
   }
 
   @keyframes toastIn {
-    from { opacity: 0; transform: translateX(-50%) translateY(16px); }
-    to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    from { opacity: 0; transform: translateY(-12px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 
   .upgrade-toast-text {
