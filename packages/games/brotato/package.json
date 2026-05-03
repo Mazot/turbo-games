@@ -17,6 +17,7 @@
     "@turbo-games/ads": "workspace:*",
     "@turbo-games/analytics": "workspace:*",
     "@turbo-games/ui": "workspace:*",
+    "@turbo-games/i18n": "workspace:*",
     "@turbo-games/math": "workspace:*",
     "three": "^0.183.2"
   },

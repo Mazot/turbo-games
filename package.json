@@ -2,10 +2,12 @@
   "name": "turbo-games",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.7.0",
+  "packageManager": "pnpm@10.33.0",
   "scripts": {
     "build": "pnpm -r build",
     "dev": "pnpm -r --parallel dev",
+    "dev:clicker": "pnpm --filter @turbo-games/clicker dev",
+    "dev:brotato": "pnpm --filter @turbo-games/brotato dev",
     "lint": "eslint 'packages/**/*.ts'",
     "lint:fix": "eslint 'packages/**/*.ts' --fix",
     "format": "prettier --write 'packages/**/*.ts'",

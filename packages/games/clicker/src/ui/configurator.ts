@@ -7,6 +7,27 @@ import {
   ROULETTE_CONFIG,
 } from '../config';
 import type { GameState } from '../game-state';
+import { t } from '../i18n';
+import { UIPainter } from './ui-painter';
+
+const DEV_CONFIG_KEY = 'turbo-clicker-dev-config';
+
+/** Reads saved dev config from localStorage and patches the config objects in-place. */
+export function applyStoredDevConfig(): void {
+  try {
+    const raw = localStorage.getItem(DEV_CONFIG_KEY);
+    if (!raw) return;
+    const data = JSON.parse(raw) as Record<string, unknown>;
+    if (data.rouletteConfig) Object.assign(ROULETTE_CONFIG, data.rouletteConfig);
+    if (data.boostConfig) Object.assign(BOOST_CONFIG, data.boostConfig);
+    if (data.autoclickConfig) Object.assign(AUTOCLICK_CONFIG, data.autoclickConfig);
+    if (Array.isArray(data.rouletteSectors)) {
+      ROULETTE_SECTORS.splice(0, ROULETTE_SECTORS.length, ...data.rouletteSectors);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * Dev-only side panel that lets you live-edit all config values:
@@ -21,7 +42,8 @@ export class ConfiguratorPanel {
   private root: HTMLDivElement;
   private contentEl!: HTMLDivElement;
   private tabEl!: HTMLButtonElement;
-  private visible = true;
+  private visible = false;
+  private painter = new UIPainter();
 
   constructor(
     private state: GameState,
@@ -47,7 +69,7 @@ export class ConfiguratorPanel {
 
     this.tabEl = document.createElement('button');
     this.tabEl.className = 'cfg-tab';
-    this.tabEl.title = 'Configurator';
+    this.tabEl.title = t('configurator.tabTitle');
     this.tabEl.textContent = '⚙️';
     this.tabEl.addEventListener('click', () => this.toggle());
 
@@ -56,15 +78,35 @@ export class ConfiguratorPanel {
 
     const title = document.createElement('div');
     title.className = 'cfg-title';
-    title.textContent = '⚙️ Configurator';
+    title.textContent = t('configurator.title');
     this.contentEl.appendChild(title);
 
-    this.contentEl.appendChild(this.buildSection('🎨 Assets', this.buildAssetsSection()));
-    this.contentEl.appendChild(this.buildSection('🖼️ Backgrounds', this.buildBgsTable()));
-    this.contentEl.appendChild(this.buildSection('⚡ Boost', this.buildBoostFields()));
-    this.contentEl.appendChild(this.buildSection('🤖 Auto-click', this.buildAutoclickFields()));
-    this.contentEl.appendChild(this.buildSection('🎰 Roulette', this.buildRouletteSection()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionCheats'), this.buildCheatsSection()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionAssets'), this.buildAssetsSection()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionBackgrounds'), this.buildBgsTable()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionBoost'), this.buildBoostFields()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionAutoclick'), this.buildAutoclickFields()));
+    this.contentEl.appendChild(this.buildSection(t('configurator.sectionRoulette'), this.buildRouletteSection()));
 
+    // ── Save button (sticky bottom) ──
+    const saveBtn = document.createElement('button');
+    saveBtn.className = 'cfg-save-btn';
+    saveBtn.textContent = '💾 Сохранить настройки';
+    saveBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      const data = {
+        rouletteConfig: { ...ROULETTE_CONFIG },
+        boostConfig: { ...BOOST_CONFIG },
+        autoclickConfig: { ...AUTOCLICK_CONFIG },
+        rouletteSectors: ROULETTE_SECTORS.map((s) => ({ ...s })),
+      };
+      localStorage.setItem(DEV_CONFIG_KEY, JSON.stringify(data));
+      saveBtn.textContent = '✅ Сохранено!';
+      setTimeout(() => { saveBtn.textContent = '💾 Сохранить настройки'; }, 1500);
+    });
+    this.contentEl.appendChild(saveBtn);
+
+    this.contentEl.style.display = 'none';
     this.root.append(this.tabEl, this.contentEl);
   }
 
@@ -102,10 +144,10 @@ export class ConfiguratorPanel {
       headerLabels.className = 'cfg-asset-header-labels';
       const lName = document.createElement('span');
       lName.className = 'cfg-th';
-      lName.textContent = 'Asset Name';
+      lName.textContent = t('configurator.assetName');
       const lCost = document.createElement('span');
       lCost.className = 'cfg-th cfg-th-right';
-      lCost.textContent = 'Unlock ⭐';
+      lCost.textContent = t('configurator.unlockStars');
       headerLabels.append(lName, lCost);
 
       const headerInputs = document.createElement('div');
@@ -125,7 +167,7 @@ export class ConfiguratorPanel {
 
       const lvlHeaderRow = document.createElement('div');
       lvlHeaderRow.className = 'cfg-level-row';
-      ['Lv', 'Image Path', 'Upgrade ⭐', '+/click'].forEach((label, col) => {
+      [t('configurator.lv'), t('configurator.imagePath'), t('configurator.upgradeStars'), t('configurator.perClick')].forEach((label, col) => {
         const th = document.createElement('div');
         th.className = col >= 2 ? 'cfg-th cfg-th-right' : 'cfg-th';
         th.textContent = label;
@@ -174,7 +216,10 @@ export class ConfiguratorPanel {
     const table = document.createElement('div');
     table.className = 'cfg-table';
 
-    const header = this.makeRowHeader(['Image Path', 'Name', 'Cost ⭐'], 'cfg-row-bg');
+    const header = this.makeRowHeader(
+      [t('configurator.bgImagePath'), t('configurator.bgName'), t('configurator.bgCost')],
+      'cfg-row-bg',
+    );
     table.appendChild(header);
 
     BACKGROUNDS_ASSETS.forEach((bg, i) => {
@@ -198,6 +243,45 @@ export class ConfiguratorPanel {
     return table;
   }
 
+  // ─── Cheats section ───────────────────────────────────────────────────────
+
+  private buildCheatsSection(): HTMLElement {
+    const wrap = document.createElement('div');
+    wrap.className = 'cfg-fields';
+
+    let giveAmount = 1_000;
+
+    const amountInput = this.makeNumberInput(giveAmount, 'cfg-num-wide', (v) => {
+      giveAmount = v;
+    });
+
+    const giveBtn = document.createElement('button');
+    giveBtn.className = 'cfg-input';
+    giveBtn.textContent = t('configurator.givePoints');
+    giveBtn.style.cssText = 'cursor: pointer; text-align: center; padding: 8px; background: rgba(80,200,120,0.12); border-color: rgba(80,200,120,0.4); color: #7dffaa;';
+    giveBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (giveAmount > 0) this.state.applyRouletteReward(giveAmount);
+    });
+
+    wrap.appendChild(this.makeLabeledField(t('configurator.amountStars'), amountInput));
+    wrap.appendChild(giveBtn);
+
+    const painterBtn = document.createElement('button');
+    painterBtn.className = 'cfg-input';
+    painterBtn.textContent = t('painter.toggleOn');
+    painterBtn.style.cssText =
+      'cursor: pointer; text-align: center; padding: 8px; margin-top: 8px; background: rgba(78,163,255,0.14); border-color: rgba(78,163,255,0.4); color: #cfe6ff;';
+    painterBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      const active = this.painter.toggle();
+      painterBtn.textContent = active ? t('painter.toggleOff') : t('painter.toggleOn');
+    });
+    wrap.appendChild(painterBtn);
+
+    return wrap;
+  }
+
   // ─── Boost fields ─────────────────────────────────────────────────────────
 
   private buildBoostFields(): HTMLElement {
@@ -205,7 +289,7 @@ export class ConfiguratorPanel {
     wrap.className = 'cfg-fields';
     wrap.appendChild(
       this.makeLabeledField(
-        'Multiplier',
+        t('configurator.multiplier'),
         this.makeNumberInput(BOOST_CONFIG.multiplier, 'cfg-num-wide', (v) => {
           BOOST_CONFIG.multiplier = v;
         }),
@@ -213,7 +297,7 @@ export class ConfiguratorPanel {
     );
     wrap.appendChild(
       this.makeLabeledField(
-        'Duration (ms)',
+        t('configurator.durationMs'),
         this.makeNumberInput(BOOST_CONFIG.durationMs, 'cfg-num-wide', (v) => {
           BOOST_CONFIG.durationMs = v;
         }),
@@ -229,7 +313,7 @@ export class ConfiguratorPanel {
     wrap.className = 'cfg-fields';
     wrap.appendChild(
       this.makeLabeledField(
-        'Duration (ms)',
+        t('configurator.durationMs'),
         this.makeNumberInput(AUTOCLICK_CONFIG.durationMs, 'cfg-num-wide', (v) => {
           AUTOCLICK_CONFIG.durationMs = v;
         }),
@@ -237,7 +321,7 @@ export class ConfiguratorPanel {
     );
     wrap.appendChild(
       this.makeLabeledField(
-        'Clicks / sec',
+        t('configurator.clicksPerSec'),
         this.makeNumberInput(AUTOCLICK_CONFIG.clicksPerSecond, 'cfg-num-wide', (v) => {
           AUTOCLICK_CONFIG.clicksPerSecond = v;
         }),
@@ -247,7 +331,7 @@ export class ConfiguratorPanel {
     // Force activate autoclick button
     const forceBtn = document.createElement('button');
     forceBtn.className = 'cfg-input';
-    forceBtn.textContent = '🤖 Force Auto-click';
+    forceBtn.textContent = t('configurator.forceAutoclick');
     forceBtn.style.cssText = 'cursor: pointer; text-align: center; margin-top: 8px; padding: 8px;';
     forceBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -267,7 +351,7 @@ export class ConfiguratorPanel {
     // General roulette settings
     wrap.appendChild(
       this.makeLabeledField(
-        'Spin Duration (ms)',
+        t('configurator.spinDurationMs'),
         this.makeNumberInput(ROULETTE_CONFIG.spinDurationMs, 'cfg-num-wide', (v) => {
           ROULETTE_CONFIG.spinDurationMs = v;
         }),
@@ -275,7 +359,7 @@ export class ConfiguratorPanel {
     );
     wrap.appendChild(
       this.makeLabeledField(
-        'Spin Revolutions',
+        t('configurator.spinRevolutions'),
         this.makeNumberInput(ROULETTE_CONFIG.spinRevolutions, 'cfg-num-wide', (v) => {
           ROULETTE_CONFIG.spinRevolutions = v;
         }),
@@ -283,7 +367,7 @@ export class ConfiguratorPanel {
     );
     wrap.appendChild(
       this.makeLabeledField(
-        'Cooldown (ms)',
+        t('configurator.cooldownMs'),
         this.makeNumberInput(ROULETTE_CONFIG.freeSpinCooldownMs, 'cfg-num-wide', (v) => {
           ROULETTE_CONFIG.freeSpinCooldownMs = v;
         }),
@@ -291,7 +375,7 @@ export class ConfiguratorPanel {
     );
     wrap.appendChild(
       this.makeLabeledField(
-        'Spin Cost ⭐',
+        t('configurator.spinCostStars'),
         this.makeNumberInput(ROULETTE_CONFIG.spinCost, 'cfg-num-wide', (v) => {
           ROULETTE_CONFIG.spinCost = v;
         }),
@@ -301,13 +385,21 @@ export class ConfiguratorPanel {
     // Sectors (prizes) table
     const sectorsTitle = document.createElement('div');
     sectorsTitle.className = 'cfg-th';
-    sectorsTitle.textContent = 'Prizes / Sectors';
+    sectorsTitle.textContent = t('configurator.prizesSectors');
     sectorsTitle.style.marginTop = '8px';
     wrap.appendChild(sectorsTitle);
 
     const headerRow = document.createElement('div');
     headerRow.className = 'cfg-level-row cfg-roulette-row-ext';
-    ['Label', 'Icon', 'Color', 'Image', 'Weight', 'Reward', ''].forEach((label) => {
+    [
+      t('configurator.label'),
+      t('configurator.icon'),
+      t('configurator.color'),
+      t('configurator.image'),
+      t('configurator.weight'),
+      t('configurator.reward'),
+      '',
+    ].forEach((label) => {
       const th = document.createElement('div');
       th.className = 'cfg-th';
       th.textContent = label;
@@ -358,7 +450,7 @@ export class ConfiguratorPanel {
     // Add sector button
     const addBtn = document.createElement('button');
     addBtn.className = 'cfg-input';
-    addBtn.textContent = '+ Add Sector';
+    addBtn.textContent = t('configurator.addSector');
     addBtn.style.cssText = 'cursor: pointer; text-align: center; margin-top: 4px; padding: 6px;';
     addBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -376,7 +468,7 @@ export class ConfiguratorPanel {
     // Force free spin button
     const forceBtn = document.createElement('button');
     forceBtn.className = 'cfg-input';
-    forceBtn.textContent = '🎁 Force Free Spin';
+    forceBtn.textContent = t('configurator.forceFreeSpin');
     forceBtn.style.cssText = 'cursor: pointer; text-align: center; margin-top: 8px; padding: 8px;';
     forceBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -460,7 +552,7 @@ export class ConfiguratorPanel {
     const btn = document.createElement('button');
     btn.className = 'cfg-input cfg-remove-btn';
     btn.textContent = '✕';
-    btn.title = 'Remove sector';
+    btn.title = t('configurator.removeSectorTitle');
     btn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       onClick();
@@ -566,4 +658,23 @@ const CFG_CSS = /* css */ `
   .cfg-field-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .cfg-field-label { font-size: 13px; color: rgba(255,255,255,0.6); flex: 1; min-width: 0; }
   .cfg-num-wide { width: 110px; flex-shrink: 0; }
+
+  .cfg-save-btn {
+    position: sticky;
+    bottom: 0;
+    width: 100%;
+    padding: 12px;
+    background: rgba(80,200,120,0.18);
+    border: 1px solid rgba(80,200,120,0.45);
+    border-radius: 10px;
+    color: #7dffaa;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+    box-sizing: border-box;
+    margin-top: 4px;
+  }
+  .cfg-save-btn:hover { background: rgba(80,200,120,0.3); }
 `;

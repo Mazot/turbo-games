@@ -1,5 +1,6 @@
 import type { LevelConfig, WaveConfig } from '../types';
 import { LEVELS } from '../config/levels';
+import { t } from '../i18n';
 
 export class LevelEditor {
   private _panel: HTMLDivElement;
@@ -42,38 +43,38 @@ export class LevelEditor {
 
   private _renderEditor(): void {
     this._panel.innerHTML = `
-      <h2 style="margin-top: 0;">Level Editor</h2>
+      <h2 style="margin-top: 0;">${t('levelEditor.title')}</h2>
       <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px;">Level ID:</label>
+        <label style="display: block; margin-bottom: 5px;">${t('levelEditor.levelId')}</label>
         <input id="level-id" type="text" value="${this._currentLevel.id}"
           style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
       </div>
       <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px;">Level Name:</label>
+        <label style="display: block; margin-bottom: 5px;">${t('levelEditor.levelName')}</label>
         <input id="level-name" type="text" value="${this._currentLevel.name}"
           style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
       </div>
       <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px;">Background Image Path:</label>
+        <label style="display: block; margin-bottom: 5px;">${t('levelEditor.bgPath')}</label>
         <input id="level-bg" type="text" value="${this._currentLevel.background}"
           style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
       </div>
       <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px;">Start Gold:</label>
+        <label style="display: block; margin-bottom: 5px;">${t('levelEditor.startGold')}</label>
         <input id="level-gold" type="number" value="${this._currentLevel.startGold}"
           style="width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
       </div>
-      <h3>Waves</h3>
+      <h3>${t('levelEditor.waves')}</h3>
       <div id="waves-container"></div>
       <div style="margin-top: 20px; display: flex; gap: 10px;">
         <button id="add-wave-btn" style="flex: 1; padding: 10px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Add Wave
+          ${t('levelEditor.addWave')}
         </button>
         <button id="save-btn" style="flex: 1; padding: 10px; background: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Save
+          ${t('levelEditor.save')}
         </button>
         <button id="close-btn" style="flex: 1; padding: 10px; background: #666; color: white; border: none; border-radius: 4px; cursor: pointer;">
-          Close
+          ${t('levelEditor.close')}
         </button>
       </div>
     `;
@@ -109,30 +110,30 @@ export class LevelEditor {
 
       waveDiv.innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-          <strong>Wave ${wave.waveNumber}</strong>
+          <strong>${t('levelEditor.waveN', { n: wave.waveNumber })}</strong>
           <button class="remove-wave-btn" data-index="${i}"
             style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">
-            Remove
+            ${t('levelEditor.remove')}
           </button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
           <div>
-            <label style="font-size: 12px;">Duration (ms):</label>
+            <label style="font-size: 12px;">${t('levelEditor.durationMs')}</label>
             <input class="wave-duration" data-index="${i}" type="number" value="${wave.duration}"
               style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
           </div>
           <div>
-            <label style="font-size: 12px;">Spawn Rate (ms):</label>
+            <label style="font-size: 12px;">${t('levelEditor.spawnRateMs')}</label>
             <input class="wave-spawn-rate" data-index="${i}" type="number" value="${wave.spawnRate}"
               style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
           </div>
           <div>
-            <label style="font-size: 12px;">Max Enemies:</label>
+            <label style="font-size: 12px;">${t('levelEditor.maxEnemies')}</label>
             <input class="wave-max-enemies" data-index="${i}" type="number" value="${wave.maxEnemies}"
               style="width: 100%; padding: 5px; border-radius: 4px; border: 1px solid #555; background: #222; color: white;">
           </div>
           <div>
-            <label style="font-size: 12px;">Boss Wave:</label>
+            <label style="font-size: 12px;">${t('levelEditor.bossWave')}</label>
             <input class="wave-boss" data-index="${i}" type="checkbox" ${wave.bossWave ? 'checked' : ''}
               style="width: 20px; height: 20px;">
           </div>
@@ -201,7 +202,7 @@ export class LevelEditor {
 
     console.log('Level saved:', JSON.stringify(this._currentLevel, null, 2));
     this.onSave?.(this._currentLevel);
-    alert('Level configuration saved to console!');
+    alert(t('levelEditor.saved'));
   }
 
   dispose(): void {

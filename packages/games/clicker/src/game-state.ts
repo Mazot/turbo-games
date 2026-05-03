@@ -22,6 +22,7 @@ export class GameState {
   private _boostEndTime = 0;
   private _lastFreeSpinTime = 0;
   private _autoclickEndTime = 0;
+  private _tutorialDone = false;
 
   constructor() {
     this.load();
@@ -60,13 +61,24 @@ export class GameState {
   }
 
   get pointsPerClick(): number {
-    const level = this._assetLevels[this._currentAsset];
+    const level = this.getAssetLevel(this._currentAsset);
     return ASSETS[this._currentAsset].levels[level].pointsPerClick * this.multiplier;
+  }
+
+  get tutorialDone(): boolean {
+    return this._tutorialDone;
+  }
+
+  completeTutorial(): void {
+    this._tutorialDone = true;
+    this.save();
   }
 
   /** Returns the current upgrade level (0–5) of the given asset. */
   getAssetLevel(assetIndex: number): number {
-    return this._assetLevels[assetIndex] ?? 0;
+    const level = this._assetLevels[assetIndex] ?? 0;
+    const maxLevel = ASSETS[assetIndex]?.levels.length ? ASSETS[assetIndex].levels.length - 1 : 0;
+    return Math.min(level, maxLevel);
   }
 
   isAssetUnlocked(index: number): boolean {
@@ -84,6 +96,15 @@ export class GameState {
     this.events.emit('click', points);
     this.save();
     return points;
+  }
+
+  /** Spend points directly (for purchasing bonuses). Returns false if not enough. */
+  spendPoints(amount: number): boolean {
+    if (this._score < amount) return false;
+    this._score -= amount;
+    this.events.emit('score:change', this._score);
+    this.save();
+    return true;
   }
 
   buyAsset(index: number): boolean {
@@ -117,6 +138,16 @@ export class GameState {
     this._score -= cost;
     this._unlockedBackgrounds.add(index);
     this.events.emit('score:change', this._score);
+    this.events.emit('unlock:background', index);
+    this.save();
+    return true;
+  }
+
+  /** Unlocks a background for free (e.g. roulette prize). */
+  unlockBackground(index: number): boolean {
+    if (index < 0 || index >= BACKGROUNDS_ASSETS.length) return false;
+    if (this._unlockedBackgrounds.has(index)) return false;
+    this._unlockedBackgrounds.add(index);
     this.events.emit('unlock:background', index);
     this.save();
     return true;
@@ -211,6 +242,7 @@ export class GameState {
       boostEndTime: this._boostEndTime,
       lastFreeSpinTime: this._lastFreeSpinTime,
       autoclickEndTime: this._autoclickEndTime,
+      tutorialDone: this._tutorialDone,
     };
     try {
       localStorage.setItem(SAVE_KEY, JSON.stringify(data));
@@ -225,8 +257,11 @@ export class GameState {
       if (!raw) return;
       const data = JSON.parse(raw) as SaveData;
       this._score = data.score ?? 0;
-      this._currentAsset = data.currentAsset ?? 0;
-      this._currentBackground = data.currentBackground ?? 0;
+      this._currentAsset = Math.min(data.currentAsset ?? 0, ASSETS.length - 1);
+      this._currentBackground = Math.min(
+        data.currentBackground ?? 0,
+        BACKGROUNDS_ASSETS.length - 1,
+      );
       this._assetLevels = Array.from(
         { length: ASSETS.length },
         (_, i) => data.assetLevels?.[i] ?? 0,
@@ -236,6 +271,7 @@ export class GameState {
       this._boostEndTime = data.boostEndTime ?? 0;
       this._lastFreeSpinTime = data.lastFreeSpinTime ?? 0;
       this._autoclickEndTime = data.autoclickEndTime ?? 0;
+      this._tutorialDone = data.tutorialDone ?? false;
     } catch {
       /* ignore parse errors */
     }

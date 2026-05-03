@@ -19,8 +19,11 @@ import { WEAPONS } from './config/weapons';
 import { ITEMS } from './config/items';
 import { LEVELS } from './config/levels';
 import type { EnemyConfig, WeaponConfig, UpgradeOption } from './types';
+import { initBrotatoI18n } from './i18n';
 
 async function main() {
+  await initBrotatoI18n();
+
   const container = document.getElementById('root') as HTMLDivElement;
 
   const game = await GameRenderer.create({

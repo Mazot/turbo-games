@@ -9,7 +9,13 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
   private pointer = new THREE.Vector2();
   private animProgress = -1;
   private wobbleDir = 1;
-  private baseScale = new THREE.Vector3(2.5, 2.5, 1);
+  private baseScale: THREE.Vector3 | null = null;
+
+  /** Updates the base scale used by idle/click animations. Call after changing sprite size. */
+  setBaseScale(x: number, y: number): void {
+    if (!this.baseScale) this.baseScale = new THREE.Vector3(x, y, 1);
+    else this.baseScale.set(x, y, 1);
+  }
 
   /** Programmatically triggers the same bounce + wobble animation as a real click. */
   triggerClickEffect(): void {
@@ -40,15 +46,15 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
   }
 
   onBeforeRender(ctx: CoreContext<ModulesRecord>) {
+    if (!this.baseScale) this.baseScale = this.object.scale.clone();
+
     if (this.animProgress < 0) {
-      // Idle breathing
-      const idle = 1 + 0.03 * Math.sin(ctx.time * 2);
+      const idle = 1 + 0.015 * Math.sin(ctx.time * 2);
       this.object.scale.set(this.baseScale.x * idle, this.baseScale.y * idle, this.baseScale.z);
-      this.object.rotation.z = 0.02 * Math.sin(ctx.time * 1.5);
+      this.object.rotation.z = 0.01 * Math.sin(ctx.time * 1.5);
       return;
     }
 
-    // Click animation
     this.animProgress += ctx.deltaTime * 5;
 
     if (this.animProgress >= 1) {
@@ -59,8 +65,8 @@ export class ClickTarget extends Object3DFeature<ModulesRecord> {
     }
 
     const t = this.animProgress;
-    const bounce = 1 + 0.35 * Math.sin(t * Math.PI);
-    const wobble = this.wobbleDir * 0.15 * Math.sin(t * Math.PI);
+    const bounce = 1 + 0.08 * Math.sin(t * Math.PI);
+    const wobble = this.wobbleDir * 0.04 * Math.sin(t * Math.PI);
 
     this.object.scale.set(this.baseScale.x * bounce, this.baseScale.y * bounce, this.baseScale.z);
     this.object.rotation.z = wobble;
