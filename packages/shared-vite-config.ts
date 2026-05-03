@@ -36,6 +36,7 @@ export function createGameViteConfig(
         '@turbo-games/state': path.resolve(coreDir, 'state/src'),
         '@turbo-games/math': path.resolve(coreDir, 'math/src'),
         '@turbo-games/object-pool': path.resolve(coreDir, 'object-pool/src'),
+        '@turbo-games/i18n': path.resolve(coreDir, 'i18n/src'),
       },
     },
     build: {

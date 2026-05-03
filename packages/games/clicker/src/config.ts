@@ -22,6 +22,8 @@ export interface BackgroundAssetConfig {
   name: string;
   image: string;
   cost: number;
+  /** If true — can only be obtained via roulette, not purchased in shop */
+  rouletteOnly?: boolean;
 }
 
 export const ASSETS: AssetConfig[] = [
@@ -116,12 +118,41 @@ export const ASSETS: AssetConfig[] = [
 ];
 
 export const BACKGROUNDS_ASSETS: BackgroundAssetConfig[] = [
-  { name: 'Darkness', image: 'assets/bg/bathroom_1.png', cost: 0 },
-  { name: 'Sunset', image: 'assets/bg/bathroom_2.png', cost: 200 },
-  { name: 'Ocean', image: 'assets/bg/bathroom_3.png', cost: 1_000 },
-  { name: 'Forest', image: 'assets/bg/bathroom_4.png', cost: 5_000 },
-  { name: 'Galaxy', image: 'assets/bg/bathroom_5.png', cost: 25_000 },
-  { name: 'Dawn', image: 'assets/bg/bathroom_6.png', cost: 100_000 },
+  // ── Bathroom (shop) ────────────────────────────────────────────
+  { name: 'Bathroom 1',   image: 'assets/bg/bathroom_1.png', cost: 0 },
+  { name: 'Bathroom 2',   image: 'assets/bg/bathroom_2.png', cost: 150 },
+  { name: 'Bathroom 3',   image: 'assets/bg/bathroom_3.png', cost: 350 },
+  { name: 'Bathroom 4',   image: 'assets/bg/bathroom_4.png', cost: 1_000 },
+  { name: 'Bathroom 5',   image: 'assets/bg/bathroom_5.png', cost: 3_000 },
+  { name: 'Bathroom 6',   image: 'assets/bg/bathroom_6.png', cost: 8_000 },
+  { name: 'Bathroom 7',   image: 'assets/bg/bathroom_7.png', cost: 20_000 },
+  // ── Bedroom (shop) ─────────────────────────────────────────────
+  { name: 'Bedroom',      image: 'assets/bg/bedroom.png',    cost: 40_000 },
+  { name: 'Bedroom 3',    image: 'assets/bg/bedroom_3.png',  cost: 80_000 },
+  // ── Living room (shop) ─────────────────────────────────────────
+  { name: 'Living 1',     image: 'assets/bg/livingroom_1.png', cost: 150_000 },
+  { name: 'Living 2',     image: 'assets/bg/livingroom_2.png', cost: 250_000 },
+  { name: 'Living 3',     image: 'assets/bg/livingroom_3.png', cost: 450_000 },
+  // ── Roulette-only ──────────────────────────────────────────────
+  { name: 'Bedroom 4',    image: 'assets/bg/bedroom_4.png',    cost: 0, rouletteOnly: true },
+  { name: 'Bedroom 5',    image: 'assets/bg/bedroom_5.png',    cost: 0, rouletteOnly: true },
+  { name: 'Kitchen 2',    image: 'assets/bg/kitchen_2.png',    cost: 0, rouletteOnly: true },
+  { name: 'Kitchen 3',    image: 'assets/bg/kitchen_3.png',    cost: 0, rouletteOnly: true },
+  { name: 'Kitchen 4',    image: 'assets/bg/kitchen_4.png',    cost: 0, rouletteOnly: true },
+  { name: 'Kitchen 5',    image: 'assets/bg/kitchen_5.png',    cost: 0, rouletteOnly: true },
+  { name: 'Living 4',     image: 'assets/bg/livingroom_4.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 5',     image: 'assets/bg/livingroom_5.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 6',     image: 'assets/bg/livingroom_6.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 7',     image: 'assets/bg/livingroom_7.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 8',     image: 'assets/bg/livingroom_8.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 9',     image: 'assets/bg/livingroom_9.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 10',    image: 'assets/bg/livingroom_10.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 11',    image: 'assets/bg/livingroom_11.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 12',    image: 'assets/bg/livingroom_12.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 13',    image: 'assets/bg/livingroom_13.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 14',    image: 'assets/bg/livingroom_14.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 15',    image: 'assets/bg/livingroom_15.png', cost: 0, rouletteOnly: true },
+  { name: 'Living 16',    image: 'assets/bg/livingroom_16.png', cost: 0, rouletteOnly: true },
 ];
 
 export const BOOST_CONFIG = {
@@ -136,6 +167,8 @@ export const AUTOCLICK_CONFIG = {
   cost: 1_000,
 };
 
+export type RewardType = 'points' | 'background' | 'autoclick' | 'boost';
+
 export interface RouletteSectorConfig {
   label: string;
   color: string;
@@ -144,16 +177,19 @@ export interface RouletteSectorConfig {
   /** Optional sprite image URL displayed inside the sector. */
   image?: string;
   reward: number;
+  rewardType?: RewardType;
 }
 
 export const ROULETTE_SECTORS: RouletteSectorConfig[] = [
-  { label: '10', color: '#e74c3c', weight: 30, icon: '⭐', reward: 10 },
-  { label: '25', color: '#3498db', weight: 25, icon: '⭐', reward: 25 },
-  { label: '50', color: '#2ecc71', weight: 20, icon: '💎', reward: 50 },
-  { label: '100', color: '#9b59b6', weight: 12, icon: '💎', reward: 100 },
-  { label: '250', color: '#f39c12', weight: 8, icon: '🔥', reward: 250 },
-  { label: '500', color: '#1abc9c', weight: 4, icon: '🔥', reward: 500 },
-  { label: '1K', color: '#e91e63', weight: 1, icon: '👑', reward: 1_000 },
+  { label: '10', color: '#e74c3c', weight: 28, icon: '✦', reward: 10 },
+  { label: '25', color: '#3498db', weight: 22, icon: '✦', reward: 25 },
+  { label: '50', color: '#2ecc71', weight: 18, icon: '◆', reward: 50 },
+  { label: '100', color: '#9b59b6', weight: 10, icon: '◆', reward: 100 },
+  { label: '250', color: '#f39c12', weight: 6, icon: '★', reward: 250 },
+  { label: '1K', color: '#e91e63', weight: 2, icon: '♛', reward: 1_000 },
+  { label: '×3', color: '#ff6f00', weight: 5, icon: '⚡', reward: 0, rewardType: 'boost' },
+  { label: 'AUTO', color: '#00bcd4', weight: 5, icon: '⟳', reward: 0, rewardType: 'autoclick' },
+  { label: 'ФОН', color: '#8e24aa', weight: 4, icon: '▣', reward: 0, rewardType: 'background' },
 ];
 
 export const ROULETTE_CONFIG = {

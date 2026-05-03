@@ -1,4 +1,5 @@
 import type { GameState } from '../game-state';
+import { t } from '../i18n';
 
 export class CheatsPanel {
   private _panel: HTMLDivElement;
@@ -27,36 +28,36 @@ export class CheatsPanel {
 
     const title = document.createElement('div');
     title.style.cssText = 'font-weight: bold; margin-bottom: 10px; font-size: 16px;';
-    title.textContent = '🔧 DEV CHEATS';
+    title.textContent = t('cheats.title');
     this._panel.appendChild(title);
 
-    this._addButton('+ 100 Gold', () => {
+    this._addButton(t('cheats.gold100'), () => {
       this._state.addGold(100);
     });
 
-    this._addButton('+ 1000 Gold', () => {
+    this._addButton(t('cheats.gold1000'), () => {
       this._state.addGold(1_000);
     });
 
-    this._addButton('Full HP', () => {
+    this._addButton(t('cheats.fullHp'), () => {
       const stats = this._state.stats;
       this._state.setStat('hp', stats.maxHp);
     });
 
-    this._addButton('Kill All Enemies', () => {
+    this._addButton(t('cheats.killAll'), () => {
       this.onKillAllEnemies?.();
     });
 
-    this._addButton('Complete Wave', () => {
+    this._addButton(t('cheats.completeWave'), () => {
       this.onCompleteWave?.();
     });
 
-    this._addButton('+10 Damage', () => {
+    this._addButton(t('cheats.damage10'), () => {
       const stats = this._state.stats;
       this._state.setStat('damage', stats.damage + 10);
     });
 
-    this._addButton('+1 Speed', () => {
+    this._addButton(t('cheats.speed1'), () => {
       const stats = this._state.stats;
       this._state.setStat('speed', stats.speed + 1);
     });
@@ -72,7 +73,7 @@ export class CheatsPanel {
     };
 
     const label = document.createElement('span');
-    label.textContent = 'God Mode';
+    label.textContent = t('cheats.godMode');
 
     godModeCheckbox.appendChild(checkbox);
     godModeCheckbox.appendChild(label);

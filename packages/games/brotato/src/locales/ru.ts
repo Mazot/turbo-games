@@ -1,0 +1,165 @@
+/**
+ * Russian UI strings for brotato (single locale for now).
+ */
+export const brotatoRu = {
+  ui: {
+    hp: 'ОЗ',
+    gold: 'Золото:',
+    wave: 'Волна:',
+    chooseUpgrade: 'Выберите улучшение',
+    gameOver: 'Игра окончена',
+    waveReached: 'Достигнута волна: {{wave}}',
+    goldCollected: 'Собрано золота: {{gold}}',
+    restart: 'Заново',
+    statBoostTitle: 'Усиление: {{stat}}',
+  },
+  rarity: {
+    common: 'Обычное',
+    uncommon: 'Необычное',
+    rare: 'Редкое',
+    legendary: 'Легендарное',
+  },
+  statNames: {
+    maxHp: 'Макс. ОЗ',
+    hp: 'ОЗ',
+    speed: 'Скорость',
+    damage: 'Урон',
+    attackSpeed: 'Скорость атаки',
+    critChance: 'Шанс крита',
+    critDamage: 'Крит. урон',
+    armor: 'Броня',
+    dodge: 'Уклонение',
+    luck: 'Удача',
+    range: 'Дальность',
+    projectileSpeed: 'Скорость снаряда',
+    piercing: 'Пробитие',
+    lifesteal: 'Вампиризм',
+    regen: 'Регенерация',
+  },
+  items: {
+    health_potion: {
+      name: 'Зелье здоровья',
+      description: '+20 к максимальному ОЗ',
+    },
+    speed_boots: {
+      name: 'Ботинки скорости',
+      description: '+0.5 к скорости передвижения',
+    },
+    damage_ring: {
+      name: 'Кольцо урона',
+      description: '+5 к урону',
+    },
+    critical_amulet: {
+      name: 'Амулет крита',
+      description: '+10% к шансу критического удара',
+    },
+    attack_speed_gloves: {
+      name: 'Перчатки скорости атаки',
+      description: '+20% к скорости атаки',
+    },
+    armor_plate: {
+      name: 'Бронепластина',
+      description: '+3 к броне',
+    },
+    dodge_boots: {
+      name: 'Ботинки уклонения',
+      description: '+10% к шансу уклонения',
+    },
+    lucky_charm: {
+      name: 'Талисман удачи',
+      description: '+5 к удаче',
+    },
+    range_scope: {
+      name: 'Прицел дальности',
+      description: '+2 к дальности оружия',
+    },
+    piercing_arrow: {
+      name: 'Пробивающая стрела',
+      description: '+1 к пробитию снарядов',
+    },
+    lifesteal_ring: {
+      name: 'Кольцо вампиризма',
+      description: '+10% вампиризма',
+    },
+    regeneration_amulet: {
+      name: 'Амулет регенерации',
+      description: '+1 ОЗ в секунду',
+    },
+  },
+  weapons: {
+    stick: { name: 'Палка', description: 'Простая деревянная палка' },
+    sword: { name: 'Меч', description: 'Базовый меч с нормальным уроном' },
+    bow: { name: 'Лук', description: 'Дальний бой, быстрые снаряды' },
+    magic_staff: { name: 'Магический посох', description: 'Снаряды пробивают врагов' },
+    axe: { name: 'Топор', description: 'Медленное, но мощное оружие' },
+  },
+  enemies: {
+    slime: { name: 'Слайм' },
+    goblin: { name: 'Гоблин' },
+    orc: { name: 'Орк' },
+    demon: { name: 'Демон' },
+  },
+  characters: {
+    potato: {
+      name: 'Картошка',
+      description: 'Сбалансированный персонаж без особых способностей',
+    },
+    warrior: {
+      name: 'Воин',
+      description: 'Много ОЗ и брони, ниже скорость',
+    },
+    ranger: {
+      name: 'Следопыт',
+      description: 'Повышенная дальность и скорость снарядов',
+    },
+  },
+  cheats: {
+    title: '🔧 ЧИТЫ (DEV)',
+    gold100: '+100 золота',
+    gold1000: '+1000 золота',
+    fullHp: 'Полное ОЗ',
+    killAll: 'Убить всех врагов',
+    completeWave: 'Завершить волну',
+    damage10: '+10 урона',
+    speed1: '+1 скорости',
+    godMode: 'Режим бога',
+  },
+  configurator: {
+    title: '🔧 Конфигуратор',
+    tabItems: 'Предметы',
+    tabWeapons: 'Оружие',
+    tabEnemies: 'Враги',
+    tabCharacters: 'Персонажи',
+    export: 'Экспорт в консоль',
+    exported: 'Конфигурация «{{label}}» выведена в консоль!',
+    tierEffects: 'Уровень: {{tier}} | Эффекты: {{count}}',
+    weaponStats: 'УРН: {{dmg}} | СА: {{as}} | Дальн.: {{range}}',
+    enemyStats:
+      'ОЗ: {{hp}} | УРН: {{dmg}} | Скор.: {{spd}}<br>Золото: {{gold}} | ОП: {{xp}}',
+    charStats: 'ОЗ: {{hp}} | УРН: {{dmg}} | Скор.: {{spd}}',
+    labels: {
+      items: 'Предметы',
+      weapons: 'Оружие',
+      enemies: 'Враги',
+      characters: 'Персонажи',
+    },
+  },
+  levelEditor: {
+    title: 'Редактор уровней',
+    levelId: 'ID уровня:',
+    levelName: 'Название уровня:',
+    bgPath: 'Путь к фону:',
+    startGold: 'Стартовое золото:',
+    waves: 'Волны',
+    waveN: 'Волна {{n}}',
+    addWave: 'Добавить волну',
+    save: 'Сохранить',
+    close: 'Закрыть',
+    remove: 'Удалить',
+    durationMs: 'Длительность (мс):',
+    spawnRateMs: 'Интервал спавна (мс):',
+    maxEnemies: 'Макс. врагов:',
+    bossWave: 'Босс-волна:',
+    saved: 'Конфигурация уровня сохранена (см. консоль).',
+  },
+} as const;

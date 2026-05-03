@@ -11,10 +11,16 @@ import { AudioManager } from '@turbo-games/audio';
 import { GameState } from './game-state';
 import { ClickTarget } from './features/click-target';
 import { GameUI } from './ui/game-ui';
-import { ConfiguratorPanel } from './ui/configurator';
+import { ConfiguratorPanel, applyStoredDevConfig } from './ui/configurator';
 import { ASSETS, BACKGROUNDS_ASSETS, MUSIC_CONFIG } from './config';
+import { initClickerI18n } from './i18n';
 
 async function main() {
+  // Apply saved dev config before anything reads from config objects
+  if (import.meta.env.DEV) applyStoredDevConfig();
+
+  await initClickerI18n();
+
   const container = document.getElementById('root') as HTMLDivElement;
 
   const game = await GameRenderer.create({
@@ -220,6 +226,11 @@ async function main() {
       audio.play('music');
     }
   };
+
+  // Tutorial (first launch only)
+  if (!state.tutorialDone) {
+    setTimeout(() => ui.showTutorial(), 800);
+  }
 
   if (import.meta.env.DEV) {
     const { default: Stats } = await import('three/addons/libs/stats.module.js');

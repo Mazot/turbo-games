@@ -3,6 +3,7 @@ import { makeEl, formatNumber } from '@turbo-games/ui';
 import type { GameState } from '../game-state';
 import { ASSETS, AUTOCLICK_CONFIG, BACKGROUNDS_ASSETS, BOOST_CONFIG } from '../config';
 import { RouletteModal } from './roulette-modal';
+import { t, tAssetName, tBgName } from '../i18n';
 
 export class GameUI {
   private root: HTMLDivElement;
@@ -49,9 +50,14 @@ export class GameUI {
   private btnAssets!: HTMLButtonElement;
   private btnBgs!: HTMLButtonElement;
 
-  // Upgrade prompt
+  // Upgrade prompt (asset)
   private upgradePromptEl: HTMLElement | null = null;
-  private upgradePromptDismissed = -1; // index of upgrade cost already prompted
+
+  // Upgrade prompt (background)
+  private bgUpgradePromptEl: HTMLElement | null = null;
+
+  // Side level panel
+  private levelPanelEl!: HTMLElement;
 
   // Choice popup (bonus/autoclick buy or watch ad)
   private choicePopupEl: HTMLElement | null = null;
@@ -96,6 +102,7 @@ export class GameUI {
     this.goldGlowEl.remove();
     this.closeChoicePopup();
     this.closeUpgradePrompt();
+    this.closeBgUpgradePrompt();
     this.rouletteModal.close();
     this.root.remove();
     const style = document.getElementById('game-ui-styles');
@@ -132,18 +139,20 @@ export class GameUI {
     floatContainer.id = 'float-container';
 
     const bottomBar = makeEl('div', 'bottom-bar');
-    this.btnAd = this.makeButton(`📺 Bonus x${BOOST_CONFIG.multiplier}`, () =>
-      this.showBonusChoice(),
+    this.btnAd = this.makeButton(
+      t('bar.bonus', { multiplier: BOOST_CONFIG.multiplier }),
+      () => this.showBonusChoice(),
     );
-    this.btnAutoclick = this.makeButton('🤖 Auto-click', () => this.showAutoclickChoice());
-    this.btnAssets = this.makeButton('🎨 Assets', () => this.openAssetsShop());
-    this.btnBgs = this.makeButton('🖼️ Backgrounds', () => this.openBgsShop());
-    const btnRoulette = this.makeButton('🎰 Roulette', () => this.rouletteModal.open());
+    this.btnAutoclick = this.makeButton(t('bar.autoclick'), () => this.showAutoclickChoice());
+    this.btnAssets = this.makeButton(t('bar.assets'), () => this.openAssetsShop());
+    this.btnBgs = this.makeButton(t('bar.backgrounds'), () => this.openBgsShop());
+    const btnRoulette = this.makeButton(t('bar.roulette'), () => this.rouletteModal.open());
+    btnRoulette.classList.add('bar-btn-prize');
     bottomBar.append(this.btnAd, this.btnAutoclick, this.btnAssets, this.btnBgs, btnRoulette);
 
     this.musicBtn = document.createElement('button');
     this.musicBtn.className = 'music-btn';
-    this.musicBtn.title = 'Toggle music';
+    this.musicBtn.title = t('music.toggleTitle');
     this.updateMusicBtn();
     this.musicBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
@@ -151,6 +160,8 @@ export class GameUI {
       this.updateMusicBtn();
       this.onMusicToggle?.();
     });
+
+    this.levelPanelEl = this.buildLevelPanel();
 
     this.root.append(
       scorePanel,
@@ -160,6 +171,7 @@ export class GameUI {
       floatContainer,
       bottomBar,
       this.musicBtn,
+      this.levelPanelEl,
     );
   }
 
@@ -179,17 +191,21 @@ export class GameUI {
   }
 
   private updateScore(): void {
-    this.scoreEl.textContent = `⭐ ${formatNumber(this.state.score)}`;
-    this.ppcEl.textContent = `+${this.state.pointsPerClick} per click`;
+    this.scoreEl.textContent = formatNumber(this.state.score);
+    this.ppcEl.textContent = t('hud.perClick', { count: this.state.pointsPerClick });
     this.updateAffordabilityGlows();
     this.checkUpgradePrompt();
+    this.checkBgUpgradePrompt();
   }
 
   private startBoostTimer(): void {
     this.boostInterval = setInterval(() => {
       if (this.state.boostActive) {
         const sec = Math.ceil(this.state.boostRemainingMs / 1000);
-        this.boostEl.textContent = `🔥 Bonus x${BOOST_CONFIG.multiplier} (${sec}s)`;
+        this.boostEl.textContent = t('status.boost', {
+          multiplier: BOOST_CONFIG.multiplier,
+          seconds: sec,
+        });
         this.boostEl.classList.remove('hidden');
       } else {
         this.boostEl.classList.add('hidden');
@@ -203,7 +219,8 @@ export class GameUI {
   private showBonusChoice(): void {
     if (this.state.boostActive) return;
     this.showChoicePopup({
-      title: `🔥 Bonus x${BOOST_CONFIG.multiplier}`,
+      anchorEl: this.btnAd,
+      title: t('choice.bonusTitle', { multiplier: BOOST_CONFIG.multiplier }),
       cost: BOOST_CONFIG.cost,
       canAfford: this.state.score >= BOOST_CONFIG.cost,
       onAd: async () => {
@@ -222,7 +239,8 @@ export class GameUI {
   private showAutoclickChoice(): void {
     if (this.state.autoclickActive) return;
     this.showChoicePopup({
-      title: '🤖 Auto-click',
+      anchorEl: this.btnAutoclick,
+      title: t('choice.autoclickTitle'),
       cost: AUTOCLICK_CONFIG.cost,
       canAfford: this.state.score >= AUTOCLICK_CONFIG.cost,
       onAd: async () => {
@@ -239,6 +257,7 @@ export class GameUI {
   }
 
   private showChoicePopup(opts: {
+    anchorEl?: HTMLElement;
     title: string;
     cost: number;
     canAfford: boolean;
@@ -248,17 +267,33 @@ export class GameUI {
     this.closeChoicePopup();
 
     const popup = makeEl('div', 'choice-popup');
+
+    // Position next to the anchor button if provided
+    if (opts.anchorEl) {
+      const rect = opts.anchorEl.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      popup.style.top = `${midY}px`;
+      popup.style.transform = 'translateY(-50%)';
+      popup.style.left = '170px';
+      // Disable transform-based animation to avoid position jump; use opacity fade instead
+      popup.style.animation = 'none';
+      popup.style.opacity = '0';
+      requestAnimationFrame(() => {
+        popup.style.transition = 'opacity 0.18s ease-out';
+        popup.style.opacity = '1';
+      });
+    }
     const title = makeEl('div', 'choice-popup-title');
     title.textContent = opts.title;
 
     const btnAd = document.createElement('button');
     btnAd.className = 'choice-btn choice-btn-ad';
-    btnAd.textContent = '📺 Смотреть рекламу';
+    btnAd.textContent = t('choice.watchAd');
     btnAd.disabled = true; // prevent tap-through
 
     const btnBuy = document.createElement('button');
     btnBuy.className = `choice-btn choice-btn-buy${opts.canAfford ? '' : ' locked'}`;
-    btnBuy.textContent = `⭐ Купить за ${formatNumber(opts.cost)}`;
+    btnBuy.textContent = t('choice.buyFor', { cost: formatNumber(opts.cost) });
     btnBuy.disabled = true;
 
     const btnClose = document.createElement('button');
@@ -318,63 +353,175 @@ export class GameUI {
     this.choicePopupEl = null;
   }
 
+  // ── Tutorial ─────────────────────────────────────────────────────
+
+  showTutorial(): void {
+    const steps = [
+      { emoji: '👆', text: 'Кликай на персонажа — получай очки!' },
+      { emoji: '🔥', text: 'Кликай быстро — заполняй fever bar для бонуса ×2/×3!' },
+      { emoji: '🛍️', text: 'Покупай новых персонажей и фоны в магазине слева!' },
+    ];
+    let step = 0;
+
+    const overlay = makeEl('div', 'tutorial-overlay');
+    overlay.style.cssText = `
+      position: fixed; inset: 0; z-index: 9000; pointer-events: auto;
+      background: rgba(0,0,0,0.5); display: flex; align-items: center;
+      justify-content: center;
+    `;
+
+    const card = makeEl('div', 'tutorial-card');
+    card.style.cssText = `
+      background: rgba(18,18,32,0.96); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px; padding: 20px 24px; width: 260px;
+      text-align: center; box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+      animation: popupIn 0.25s ease-out;
+    `;
+
+    const emoji = makeEl('div', '');
+    emoji.style.cssText = 'font-size: 32px; margin-bottom: 8px;';
+    const text = makeEl('div', '');
+    text.style.cssText = 'font-size: 14px; color: #fff; font-weight: 600; line-height: 1.4; margin-bottom: 14px;';
+    const progress = makeEl('div', '');
+    progress.style.cssText = 'display: flex; gap: 5px; justify-content: center; margin-bottom: 12px;';
+    const btn = document.createElement('button');
+    btn.style.cssText = `
+      background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,140,0,0.35));
+      border: 1px solid rgba(255,215,0,0.45); color: #ffd700; font-size: 14px;
+      font-weight: 700; border-radius: 12px; padding: 10px 20px; cursor: pointer;
+      font-family: inherit; width: 100%;
+    `;
+
+    const render = () => {
+      emoji.textContent = steps[step].emoji;
+      text.textContent = steps[step].text;
+      btn.textContent = step < steps.length - 1 ? 'Дальше →' : 'Начать играть! 🎮';
+      progress.innerHTML = steps.map((_, i) =>
+        `<div style="width:8px;height:8px;border-radius:50%;background:${i === step ? '#ffd700' : 'rgba(255,255,255,0.3)'}"></div>`
+      ).join('');
+    };
+    render();
+
+    btn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      step++;
+      if (step >= steps.length) {
+        overlay.remove();
+        this.state.completeTutorial();
+      } else {
+        render();
+      }
+    });
+
+    card.append(emoji, text, progress, btn);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+  }
+
   // ── Upgrade Prompt ───────────────────────────────────────────────
 
+  /**
+   * Shows an upgrade prompt while the player can afford the next level.
+   * The toast stays visible as long as the upgrade is possible and
+   * re-checks on every score change.
+   */
   private checkUpgradePrompt(): void {
     const asset = ASSETS[this.state.currentAsset];
     const lvl = this.state.getAssetLevel(this.state.currentAsset);
     const maxLevel = asset.levels.length - 1;
-    if (lvl >= maxLevel) return;
+
+    if (lvl >= maxLevel) {
+      this.closeUpgradePrompt();
+      return;
+    }
 
     const cost = asset.levels[lvl + 1].upgradeCost;
-    if (this.state.score < cost) return;
-    if (this.upgradePromptDismissed === cost) return;
-    if (this.upgradePromptEl) return;
+    const canAfford = this.state.score >= cost;
 
-    this.upgradePromptDismissed = cost;
+    if (!canAfford) {
+      this.closeUpgradePrompt();
+      return;
+    }
+
+    if (this.upgradePromptEl) return;
 
     const toast = makeEl('div', 'upgrade-toast');
     toast.innerHTML = `
-      <span class="upgrade-toast-text">⬆️ Прокачай ${asset.name}!</span>
-      <button class="upgrade-toast-btn">Апгрейд</button>
-      <button class="upgrade-toast-dismiss">✕</button>
+      <span class="upgrade-toast-text">${t('upgradeToast.line', { name: tAssetName(asset.name) })}</span>
+      <button class="upgrade-toast-btn">${t('upgradeToast.upgrade')}</button>
     `;
     this.root.appendChild(toast);
     this.upgradePromptEl = toast;
 
     const upgradeBtn = toast.querySelector('.upgrade-toast-btn') as HTMLButtonElement;
-    const dismissBtn = toast.querySelector('.upgrade-toast-dismiss') as HTMLButtonElement;
 
-    // Delay buttons to prevent tap-through
     upgradeBtn.disabled = true;
-    dismissBtn.disabled = true;
     setTimeout(() => {
       upgradeBtn.disabled = false;
-      dismissBtn.disabled = false;
-    }, 500);
+    }, 400);
 
     upgradeBtn.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       if (upgradeBtn.disabled) return;
       this.closeUpgradePrompt();
       if (this.state.upgradeAsset(this.state.currentAsset)) {
-        // refresh affordability
         this.updateAffordabilityGlows();
       }
     });
-
-    dismissBtn.addEventListener('pointerdown', (e) => {
-      e.stopPropagation();
-      this.closeUpgradePrompt();
-    });
-
-    // Auto-dismiss after 5s
-    setTimeout(() => this.closeUpgradePrompt(), 5_000);
   }
 
   private closeUpgradePrompt(): void {
     this.upgradePromptEl?.remove();
     this.upgradePromptEl = null;
+  }
+
+  // ── Background Upgrade Prompt ────────────────────────────────────
+
+  private checkBgUpgradePrompt(): void {
+    // Find first purchasable (non-roulette-only) background the player can afford
+    let nextBgIdx: number | null = null;
+    for (let i = 0; i < BACKGROUNDS_ASSETS.length; i++) {
+      const bg = BACKGROUNDS_ASSETS[i];
+      if (bg.rouletteOnly) continue;
+      if (this.state.isBackgroundUnlocked(i)) continue;
+      if (this.state.score >= bg.cost) { nextBgIdx = i; break; }
+    }
+
+    if (nextBgIdx === null) {
+      this.closeBgUpgradePrompt();
+      return;
+    }
+
+    if (this.bgUpgradePromptEl) return; // already showing
+
+    const bg = BACKGROUNDS_ASSETS[nextBgIdx];
+    const toast = makeEl('div', 'upgrade-toast upgrade-toast-bg');
+    toast.innerHTML = `
+      <span class="upgrade-toast-text">${t('upgradeToast.bgLine', { name: tBgName(bg.name) })}</span>
+      <button class="upgrade-toast-btn">${t('upgradeToast.buy')}</button>
+    `;
+    this.root.appendChild(toast);
+    this.bgUpgradePromptEl = toast;
+
+    const buyBtn = toast.querySelector('.upgrade-toast-btn') as HTMLButtonElement;
+    buyBtn.disabled = true;
+    setTimeout(() => { buyBtn.disabled = false; }, 400);
+
+    const idx = nextBgIdx;
+    buyBtn.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      if (buyBtn.disabled) return;
+      this.closeBgUpgradePrompt();
+      if (this.state.buyBackground(idx)) {
+        this.state.selectBackground(idx);
+        this.updateAffordabilityGlows();
+      }
+    });
+  }
+
+  private closeBgUpgradePrompt(): void {
+    this.bgUpgradePromptEl?.remove();
+    this.bgUpgradePromptEl = null;
   }
 
   // ── Affordability Glows ──────────────────────────────────────────
@@ -414,7 +561,7 @@ export class GameUI {
     this.autoclickInterval = setInterval(() => {
       if (this.state.autoclickActive) {
         const sec = Math.ceil(this.state.autoclickRemainingMs / 1_000);
-        this.autoclickEl.textContent = `🤖 Auto-click (${sec}s)`;
+        this.autoclickEl.textContent = t('status.autoclick', { seconds: sec });
         this.autoclickEl.classList.remove('hidden');
 
         // Perform auto-clicks per tick (interval ≈ 250 ms)
@@ -440,7 +587,7 @@ export class GameUI {
 
     const panel = makeEl('div', 'shop-panel');
     const titleBar = makeEl('div', 'shop-title');
-    titleBar.textContent = '🎨 Asset Shop';
+    titleBar.textContent = t('shop.assetTitle');
     const closeBtn = document.createElement('button');
     closeBtn.className = 'shop-close';
     closeBtn.textContent = '✕';
@@ -472,16 +619,20 @@ export class GameUI {
 
     const img = document.createElement('img');
     img.src = levelData.image;
-    img.alt = asset.name;
+    img.alt = tAssetName(asset.name);
     img.className = 'shop-item-img';
 
     const info = makeEl('div', 'shop-item-info');
     const nameEl = makeEl('span', 'shop-item-name');
-    nameEl.textContent = asset.name;
+    nameEl.textContent = tAssetName(asset.name);
     info.appendChild(nameEl);
     if (isUnlocked) {
       const levelEl = makeEl('span', 'shop-item-level');
-      levelEl.textContent = `Lv ${currentLevel + 1} / ${asset.levels.length}  ·  +${levelData.pointsPerClick}/click`;
+      levelEl.textContent = t('shop.levelLine', {
+        current: currentLevel + 1,
+        max: asset.levels.length,
+        ppc: levelData.pointsPerClick,
+      });
       info.appendChild(levelEl);
     }
 
@@ -493,7 +644,7 @@ export class GameUI {
         const canAfford = this.state.score >= nextCost;
         const upgradeBtn = document.createElement('button');
         upgradeBtn.className = `shop-action${canAfford ? ' buy' : ' locked'}`;
-        upgradeBtn.textContent = `↑ ${formatNumber(nextCost)}⭐`;
+        upgradeBtn.textContent = t('shop.upgradeCost', { cost: formatNumber(nextCost) });
         upgradeBtn.disabled = !canAfford;
         upgradeBtn.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
@@ -505,18 +656,18 @@ export class GameUI {
         actions.appendChild(upgradeBtn);
       } else {
         const maxBadge = makeEl('span', 'shop-max-badge');
-        maxBadge.textContent = 'MAX';
+        maxBadge.textContent = t('shop.max');
         actions.appendChild(maxBadge);
       }
 
       const actionBtn = document.createElement('button');
       if (isCurrent) {
         actionBtn.className = 'shop-action current';
-        actionBtn.textContent = '✓';
+        actionBtn.textContent = t('shop.selectedCheck');
         actionBtn.disabled = true;
       } else {
         actionBtn.className = 'shop-action select';
-        actionBtn.textContent = 'Select';
+        actionBtn.textContent = t('shop.select');
         actionBtn.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
           this.state.selectAsset(i);
@@ -529,7 +680,7 @@ export class GameUI {
       const canAfford = this.state.score >= asset.unlockCost;
       const unlockBtn = document.createElement('button');
       unlockBtn.className = `shop-action${canAfford ? ' buy' : ' locked'}`;
-      unlockBtn.textContent = `${formatNumber(asset.unlockCost)}⭐`;
+      unlockBtn.textContent = t('shop.unlockCost', { cost: formatNumber(asset.unlockCost) });
       unlockBtn.disabled = !canAfford;
       unlockBtn.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
@@ -555,7 +706,7 @@ export class GameUI {
 
     const panel = makeEl('div', 'shop-panel');
     const titleBar = makeEl('div', 'shop-title');
-    titleBar.textContent = '🖼️ Background Shop';
+    titleBar.textContent = t('shop.backgroundTitle');
     const closeBtn = document.createElement('button');
     closeBtn.className = 'shop-close';
     closeBtn.textContent = '✕';
@@ -567,16 +718,19 @@ export class GameUI {
 
     const list = makeEl('div', 'shop-list');
     BACKGROUNDS_ASSETS.forEach((bg, i) => {
+      // Roulette-only backgrounds are hidden until the player unlocks them
+      if (bg.rouletteOnly && !this.state.isBackgroundUnlocked(i)) return;
+
       const row = makeEl('div', 'shop-item');
 
       const img = document.createElement('img');
       img.src = bg.image;
-      img.alt = bg.name;
+      img.alt = tBgName(bg.name);
       img.className = 'shop-item-img';
 
       const info = makeEl('div', 'shop-item-info');
       const nameEl = makeEl('span', 'shop-item-name');
-      nameEl.textContent = bg.name;
+      nameEl.textContent = tBgName(bg.name);
       info.appendChild(nameEl);
 
       const action = document.createElement('button');
@@ -585,11 +739,11 @@ export class GameUI {
       const isCurrent = this.state.currentBackground === i;
 
       if (isCurrent) {
-        action.textContent = '✓ Selected';
+        action.textContent = t('shop.selected');
         action.classList.add('current');
         action.disabled = true;
       } else if (isUnlocked) {
-        action.textContent = 'Select';
+        action.textContent = t('shop.select');
         action.classList.add('select');
         action.addEventListener('pointerdown', (e) => {
           e.stopPropagation();
@@ -598,7 +752,7 @@ export class GameUI {
           this.openBgsShop();
         });
       } else {
-        action.textContent = `${formatNumber(bg.cost)}⭐`;
+        action.textContent = t('shop.unlockCost', { cost: formatNumber(bg.cost) });
         if (this.state.score >= bg.cost) {
           action.classList.add('buy');
           action.addEventListener('pointerdown', (e) => {
@@ -629,6 +783,54 @@ export class GameUI {
       this.shopOverlay.remove();
       this.shopOverlay = null;
     }
+  }
+
+  // ── Side Level Panel ────────────────────────────────────────────
+
+  /**
+   * Vertical strip on the left showing thumbnails of all unlocked
+   * levels for the current character. Clicking switches the level
+   * visually (the sprite texture).
+   */
+  private buildLevelPanel(): HTMLElement {
+    const panel = makeEl('div', 'level-panel');
+    const title = makeEl('div', 'level-panel-title');
+    title.textContent = t('levelPanel.title');
+    panel.appendChild(title);
+    this.populateLevelPanel(panel);
+    return panel;
+  }
+
+  private populateLevelPanel(panel: HTMLElement): void {
+    panel.querySelectorAll('.level-panel-item').forEach((el) => el.remove());
+
+    const assetIdx = this.state.currentAsset;
+    const asset = ASSETS[assetIdx];
+    const currentLevel = this.state.getAssetLevel(assetIdx);
+
+    asset.levels.forEach((level, lvl) => {
+      if (lvl > currentLevel) return;
+      const item = makeEl('div', `level-panel-item${lvl === currentLevel ? ' active' : ''}`);
+      const img = document.createElement('img');
+      img.src = level.image;
+      img.alt = `Lv.${lvl + 1}`;
+      img.draggable = false;
+      item.appendChild(img);
+
+      if (lvl !== currentLevel) {
+        item.addEventListener('pointerdown', (e) => {
+          e.stopPropagation();
+          this.state.events.emit('asset:level:change', assetIdx, lvl);
+          this.refreshLevelPanel();
+        });
+      }
+
+      panel.appendChild(item);
+    });
+  }
+
+  refreshLevelPanel(): void {
+    this.populateLevelPanel(this.levelPanelEl);
   }
 
   // ── Gold Sparkle Effect ────────────────────────────────────────
@@ -789,14 +991,21 @@ export class GameUI {
   private bindStateEvents(): void {
     this.state.events.on('score:change', () => this.updateScore());
     this.state.events.on('asset:change', () => {
-      this.upgradePromptDismissed = -1;
       this.closeUpgradePrompt();
       this.updateAffordabilityGlows();
+      this.refreshLevelPanel();
     });
     this.state.events.on('asset:level:change', () => {
-      this.upgradePromptDismissed = -1;
       this.closeUpgradePrompt();
       this.updateAffordabilityGlows();
+      this.refreshLevelPanel();
+    });
+    // Refresh backgrounds shop if open when a roulette-only bg gets unlocked
+    this.state.events.on('unlock:background', () => {
+      if (this.shopOverlay) {
+        this.closeShop();
+        this.openBgsShop();
+      }
     });
   }
 
@@ -847,7 +1056,7 @@ const UI_CSS = /* css */ `
 
   .status-bubbles {
     position: absolute;
-    top: 24px;
+    top: 62px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -890,6 +1099,59 @@ const UI_CSS = /* css */ `
     50% { transform: scale(1.06); }
   }
 
+  /* ── Side Level Panel ──────────────────────────────── */
+
+  .level-panel {
+    position: absolute;
+    right: 12px;
+    top: clamp(190px, 34vh, 256px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(4px, 1vh, 8px);
+    z-index: 110;
+  }
+
+  .level-panel-title {
+    font-size: clamp(9px, 1.5vh, 11px);
+    font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 2px;
+  }
+
+  .level-panel-item {
+    width: clamp(44px, 8vh, 64px);
+    height: clamp(44px, 8vh, 64px);
+    border-radius: clamp(10px, 1.8vh, 14px);
+    overflow: hidden;
+    border: 2px solid rgba(255,255,255,0.12);
+    background: rgba(0,0,0,0.35);
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .level-panel-item:hover {
+    border-color: rgba(255,255,255,0.35);
+    transform: scale(1.08);
+  }
+
+  .level-panel-item.active {
+    border-color: #ffd700;
+    box-shadow: 0 0 10px rgba(255,215,0,0.35);
+    cursor: default;
+  }
+
+  .level-panel-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
   .float-container {
     position: absolute;
     inset: 0;
@@ -925,10 +1187,10 @@ const UI_CSS = /* css */ `
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.18);
     color: #fff;
-    width: 48px;
-    height: 48px;
+    width: clamp(36px, 6vh, 48px);
+    height: clamp(36px, 6vh, 48px);
     border-radius: 50%;
-    font-size: 22px;
+    font-size: clamp(16px, 2.8vh, 22px);
     cursor: pointer;
     transition: background 0.2s, transform 0.15s;
     display: flex;
@@ -951,7 +1213,8 @@ const UI_CSS = /* css */ `
     left: 24px;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: clamp(4px, 1.2vh, 10px);
+    max-height: calc(100dvh - 190px);
   }
 
   .bar-btn {
@@ -960,14 +1223,15 @@ const UI_CSS = /* css */ `
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.18);
     color: #fff;
-    padding: 14px 22px;
-    border-radius: 18px;
-    font-size: 15px;
+    padding: clamp(6px, 1.6vh, 14px) 22px;
+    border-radius: clamp(12px, 2vh, 18px);
+    font-size: clamp(11px, 2vh, 15px);
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
     font-family: inherit;
     white-space: nowrap;
+    flex-shrink: 1;
   }
 
   .bar-btn:hover {
@@ -1166,10 +1430,10 @@ const UI_CSS = /* css */ `
 
   .fever-bar {
     position: absolute;
-    top: 95px;
+    top: 30px;
     left: 50%;
     transform: translateX(-50%);
-    width: min(180px, 40vw);
+    width: 200px;
     height: 22px;
     background: rgba(0, 0, 0, 0.5);
     border-radius: 14px;
@@ -1286,6 +1550,18 @@ const UI_CSS = /* css */ `
 
   /* ── Affordability glow on bottom bar buttons ───────── */
 
+  .bar-btn.bar-btn-prize {
+    background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,120,0,0.3));
+    border-color: rgba(255,215,0,0.5);
+    color: #ffd700;
+    animation: prizePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes prizePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,215,0,0.3); }
+    50% { box-shadow: 0 0 20px rgba(255,215,0,0.6), 0 0 40px rgba(255,120,0,0.2); }
+  }
+
   .bar-btn.btn-can-afford {
     border-color: rgba(255, 215, 0, 0.6);
     box-shadow: 0 0 14px rgba(255, 215, 0, 0.35), 0 0 4px rgba(255, 215, 0, 0.2);
@@ -1300,9 +1576,10 @@ const UI_CSS = /* css */ `
   /* ── Choice popup (bonus/autoclick buy or ad) ────────── */
 
   .choice-popup {
-    position: absolute;
-    top: 400px;
-    left: 24px;
+    position: fixed;
+    top: 50%;
+    left: 170px;
+    transform: translateY(-50%);
     background: rgba(18, 18, 32, 0.97);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -1381,20 +1658,21 @@ const UI_CSS = /* css */ `
   /* ── Upgrade toast ───────────────────────────────────── */
 
   .upgrade-toast {
-    position: absolute;
-    top: 95px;
-    right: 24px;
+    position: fixed;
+    top: clamp(72px, 13vh, 100px);
+    right: 8px;
     left: auto;
     transform: none;
+    max-width: calc(100vw - 80px);
     background: rgba(18, 18, 32, 0.97);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid rgba(255, 215, 0, 0.35);
-    border-radius: 18px;
-    padding: 14px 18px;
+    border-radius: clamp(12px, 2vh, 18px);
+    padding: clamp(8px, 1.6vh, 14px) clamp(12px, 2vh, 18px);
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: clamp(8px, 1.4vh, 12px);
     box-shadow: 0 0 20px rgba(255,215,0,0.2), 0 8px 30px rgba(0,0,0,0.5);
     animation: toastIn 0.25s ease-out;
     z-index: 150;
@@ -1408,7 +1686,7 @@ const UI_CSS = /* css */ `
   }
 
   .upgrade-toast-text {
-    font-size: 14px;
+    font-size: clamp(11px, 1.9vh, 14px);
     font-weight: 600;
     color: #ffd700;
   }
@@ -1417,9 +1695,9 @@ const UI_CSS = /* css */ `
     background: linear-gradient(135deg, rgba(255,215,0,0.25), rgba(255,160,0,0.3));
     border: 1px solid rgba(255,215,0,0.4);
     color: #ffd700;
-    border-radius: 10px;
-    padding: 8px 14px;
-    font-size: 13px;
+    border-radius: clamp(8px, 1.4vh, 10px);
+    padding: clamp(5px, 1.2vh, 8px) clamp(10px, 1.8vh, 14px);
+    font-size: clamp(11px, 1.8vh, 13px);
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
@@ -1428,6 +1706,10 @@ const UI_CSS = /* css */ `
 
   .upgrade-toast-btn:not(:disabled):active { transform: scale(0.95); }
   .upgrade-toast-btn:disabled { opacity: 0.4; }
+
+  .upgrade-toast-bg {
+    top: clamp(130px, 24vh, 174px);
+  }
 
   .upgrade-toast-dismiss {
     background: none;
@@ -1446,11 +1728,11 @@ const UI_CSS = /* css */ `
     bottom: 0;
     left: 0;
     right: 0;
-    height: 100px;
+    height: 60px;
     background: linear-gradient(
       to top,
-      rgb(255, 206, 73) 0%,
-      rgb(255, 237, 101) 25%,
+      rgba(255, 185, 73, 0.84) 0%,
+      rgba(255, 245, 101, 0.67) 25%,
       transparent 100%
     );
     pointer-events: none;
@@ -1518,6 +1800,7 @@ const UI_CSS = /* css */ `
     30% { opacity: 1; transform: translateY(-20px) scale(1.4); }
     100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
   }
+
 `;
 
 // Re-inject styles on every HMR update (runs at module evaluation time)

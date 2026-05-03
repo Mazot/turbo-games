@@ -26,4 +26,5 @@ export interface SaveData {
   boostEndTime: number;
   lastFreeSpinTime: number;
   autoclickEndTime: number;
+  tutorialDone: boolean;
 }

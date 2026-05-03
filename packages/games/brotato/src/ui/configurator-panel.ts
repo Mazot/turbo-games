@@ -1,8 +1,8 @@
-import type { ItemConfig, WeaponConfig, EnemyConfig, CharacterConfig } from '../types';
 import { ITEMS } from '../config/items';
 import { WEAPONS } from '../config/weapons';
 import { ENEMIES } from '../config/enemies';
 import { CHARACTERS } from '../config/characters';
+import { t } from '../i18n';
 
 type ConfigType = 'items' | 'weapons' | 'enemies' | 'characters';
 
@@ -42,32 +42,32 @@ export class ConfiguratorPanel {
 
   private _renderPanel(): void {
     this._panel.innerHTML = `
-      <h3 style="margin-top: 0;">🔧 Configurator</h3>
+      <h3 style="margin-top: 0;">${t('configurator.title')}</h3>
       <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
         <button id="tab-items" style="flex: 1; padding: 8px; background: ${
           this._currentType === 'items' ? '#2196F3' : '#555'
         }; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-          Items
+          ${t('configurator.tabItems')}
         </button>
         <button id="tab-weapons" style="flex: 1; padding: 8px; background: ${
           this._currentType === 'weapons' ? '#2196F3' : '#555'
         }; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-          Weapons
+          ${t('configurator.tabWeapons')}
         </button>
         <button id="tab-enemies" style="flex: 1; padding: 8px; background: ${
           this._currentType === 'enemies' ? '#2196F3' : '#555'
         }; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-          Enemies
+          ${t('configurator.tabEnemies')}
         </button>
         <button id="tab-characters" style="flex: 1; padding: 8px; background: ${
           this._currentType === 'characters' ? '#2196F3' : '#555'
         }; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">
-          Characters
+          ${t('configurator.tabCharacters')}
         </button>
       </div>
       <div id="config-content"></div>
       <button id="export-btn" style="width: 100%; padding: 10px; margin-top: 15px; background: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer;">
-        Export to Console
+        ${t('configurator.export')}
       </button>
     `;
 
@@ -116,10 +116,10 @@ export class ConfiguratorPanel {
     return ITEMS.map(
       (item) => `
       <div style="background: rgba(50, 50, 60, 0.5); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-        <div style="font-weight: bold; margin-bottom: 5px;">${item.name}</div>
-        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${item.description}</div>
+        <div style="font-weight: bold; margin-bottom: 5px;">${t(`items.${item.id}.name`, { defaultValue: item.name })}</div>
+        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${t(`items.${item.id}.description`, { defaultValue: item.description })}</div>
         <div style="font-size: 11px; color: #888;">
-          Tier: ${item.tier} | Effects: ${item.effects.length}
+          ${t('configurator.tierEffects', { tier: item.tier, count: item.effects.length })}
         </div>
       </div>
     `
@@ -130,10 +130,10 @@ export class ConfiguratorPanel {
     return WEAPONS.map(
       (weapon) => `
       <div style="background: rgba(50, 50, 60, 0.5); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-        <div style="font-weight: bold; margin-bottom: 5px;">${weapon.name}</div>
-        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${weapon.description}</div>
+        <div style="font-weight: bold; margin-bottom: 5px;">${t(`weapons.${weapon.id}.name`, { defaultValue: weapon.name })}</div>
+        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${t(`weapons.${weapon.id}.description`, { defaultValue: weapon.description })}</div>
         <div style="font-size: 11px; color: #888;">
-          DMG: ${weapon.damage} | AS: ${weapon.attackSpeed} | Range: ${weapon.range}
+          ${t('configurator.weaponStats', { dmg: weapon.damage, as: weapon.attackSpeed, range: weapon.range })}
         </div>
       </div>
     `
@@ -144,10 +144,15 @@ export class ConfiguratorPanel {
     return ENEMIES.map(
       (enemy) => `
       <div style="background: rgba(50, 50, 60, 0.5); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-        <div style="font-weight: bold; margin-bottom: 5px;">${enemy.name}</div>
+        <div style="font-weight: bold; margin-bottom: 5px;">${t(`enemies.${enemy.id}.name`, { defaultValue: enemy.name })}</div>
         <div style="font-size: 11px; color: #888;">
-          HP: ${enemy.hp} | DMG: ${enemy.damage} | Speed: ${enemy.speed}<br>
-          Gold: ${enemy.goldDrop} | XP: ${enemy.xpDrop}
+          ${t('configurator.enemyStats', {
+            hp: enemy.hp,
+            dmg: enemy.damage,
+            spd: enemy.speed,
+            gold: enemy.goldDrop,
+            xp: enemy.xpDrop,
+          })}
         </div>
       </div>
     `
@@ -158,10 +163,14 @@ export class ConfiguratorPanel {
     return CHARACTERS.map(
       (char) => `
       <div style="background: rgba(50, 50, 60, 0.5); padding: 10px; border-radius: 6px; margin-bottom: 8px;">
-        <div style="font-weight: bold; margin-bottom: 5px;">${char.name}</div>
-        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${char.description}</div>
+        <div style="font-weight: bold; margin-bottom: 5px;">${t(`characters.${char.id}.name`, { defaultValue: char.name })}</div>
+        <div style="font-size: 12px; color: #aaa; margin-bottom: 5px;">${t(`characters.${char.id}.description`, { defaultValue: char.description })}</div>
         <div style="font-size: 11px; color: #888;">
-          HP: ${char.baseStats.maxHp} | DMG: ${char.baseStats.damage} | Speed: ${char.baseStats.speed}
+          ${t('configurator.charStats', {
+            hp: char.baseStats.maxHp,
+            dmg: char.baseStats.damage,
+            spd: char.baseStats.speed,
+          })}
         </div>
       </div>
     `
@@ -170,29 +179,30 @@ export class ConfiguratorPanel {
 
   private _export(): void {
     let data: unknown;
-    let label: string;
+    let labelKey: 'items' | 'weapons' | 'enemies' | 'characters';
 
     switch (this._currentType) {
       case 'items':
         data = ITEMS;
-        label = 'Items';
+        labelKey = 'items';
         break;
       case 'weapons':
         data = WEAPONS;
-        label = 'Weapons';
+        labelKey = 'weapons';
         break;
       case 'enemies':
         data = ENEMIES;
-        label = 'Enemies';
+        labelKey = 'enemies';
         break;
       case 'characters':
         data = CHARACTERS;
-        label = 'Characters';
+        labelKey = 'characters';
         break;
     }
 
-    console.log(`${label} Configuration:`, JSON.stringify(data, null, 2));
-    alert(`${label} configuration exported to console!`);
+    const label = t(`configurator.labels.${labelKey}`);
+    console.log(`${label}:`, JSON.stringify(data, null, 2));
+    alert(t('configurator.exported', { label }));
   }
 
   dispose(): void {

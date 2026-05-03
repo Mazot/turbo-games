@@ -2,18 +2,18 @@ import type { AdManager } from '@turbo-games/ads';
 import { RouletteWheel } from '@turbo-games/roulette';
 import { formatNumber } from '@turbo-games/ui';
 import type { GameState } from '../game-state';
-import { ROULETTE_SECTORS, ROULETTE_CONFIG } from '../config';
+import { ROULETTE_SECTORS, ROULETTE_CONFIG, BACKGROUNDS_ASSETS } from '../config';
+import { t, tBgName } from '../i18n';
 
 /**
  * Full-screen modal overlay that hosts a RouletteWheel from the core package.
- * Provides three spin triggers: free spin (cooldown timer), rewarded ad, and
- * paid spin (deducts game currency). Applies point rewards to GameState.
+ * Provides two spin triggers: rewarded ad (no cooldown) and
+ * paid spin (deducts game currency + 5-min cooldown). Applies point rewards to GameState.
  */
 export class RouletteModal {
   private overlay: HTMLDivElement | null = null;
   private wheel: RouletteWheel<number> | null = null;
   private timerInterval: ReturnType<typeof setInterval> | null = null;
-  private freeSpinBtn: HTMLButtonElement | null = null;
   private paidSpinBtn: HTMLButtonElement | null = null;
   private adSpinBtn: HTMLButtonElement | null = null;
   private resultEl: HTMLDivElement | null = null;
@@ -42,7 +42,7 @@ export class RouletteModal {
     // Title bar
     const titleBar = document.createElement('div');
     titleBar.className = 'roulette-title';
-    titleBar.textContent = '🎰 Roulette';
+    titleBar.textContent = t('roulette.title');
     const closeBtn = document.createElement('button');
     closeBtn.className = 'roulette-close';
     closeBtn.textContent = '✕';
@@ -68,6 +68,7 @@ export class RouletteModal {
       spinDurationMs: ROULETTE_CONFIG.spinDurationMs,
       spinRevolutions: ROULETTE_CONFIG.spinRevolutions,
       size: ROULETTE_CONFIG.wheelSize,
+      labelFontSize: 28,
     });
 
     // Result display
@@ -78,14 +79,13 @@ export class RouletteModal {
     const buttonsRow = document.createElement('div');
     buttonsRow.className = 'roulette-buttons';
 
-    this.freeSpinBtn = this.createSpinButton('🎁 Free Spin', () => this.onFreeSpin());
-    this.adSpinBtn = this.createSpinButton('📺 Watch Ad', () => this.onAdSpin());
+    this.adSpinBtn = this.createSpinButton(t('roulette.watchAd'), () => this.onAdSpin());
     this.paidSpinBtn = this.createSpinButton(
-      `⭐ Spin (${formatNumber(ROULETTE_CONFIG.spinCost)})`,
+      t('roulette.spinPaid', { cost: formatNumber(ROULETTE_CONFIG.spinCost) }),
       () => this.onPaidSpin(),
     );
 
-    buttonsRow.append(this.freeSpinBtn, this.adSpinBtn, this.paidSpinBtn);
+    buttonsRow.append(this.adSpinBtn, this.paidSpinBtn);
 
     panel.append(titleBar, wheelContainer, this.resultEl, buttonsRow);
     overlay.appendChild(panel);
@@ -104,7 +104,6 @@ export class RouletteModal {
     this.wheel = null;
     this.overlay.remove();
     this.overlay = null;
-    this.freeSpinBtn = null;
     this.adSpinBtn = null;
     this.paidSpinBtn = null;
     this.resultEl = null;
@@ -133,15 +132,51 @@ export class RouletteModal {
     this.state.events.emit('roulette:spin');
 
     const result = await this.wheel.spin();
-    this.state.applyRouletteReward(result.sector.reward);
-    this.showResult(result.sector.reward);
+    const sectorIdx = result.sectorIndex;
+    const cfg = ROULETTE_SECTORS[sectorIdx];
+    const rewardType = cfg?.rewardType ?? 'points';
+
+    this.applyReward(rewardType, cfg?.reward ?? 0);
     this.updateButtons();
   }
 
-  private async onFreeSpin(): Promise<void> {
-    if (!this.state.canFreeSpin()) return;
-    this.state.consumeFreeSpin();
-    await this.doSpin();
+  private applyReward(rewardType: string, points: number): void {
+    switch (rewardType) {
+      case 'boost':
+        this.state.activateBoost();
+        this.showResultText(t('roulette.resultBoost'));
+        break;
+      case 'autoclick':
+        this.state.activateAutoclick();
+        this.showResultText(t('roulette.resultAutoclick'));
+        break;
+      case 'background': {
+        const nextBg = this.findNextLockedBackground();
+        if (nextBg !== null) {
+          this.state.unlockBackground(nextBg);
+          const bgName = tBgName(BACKGROUNDS_ASSETS[nextBg].name);
+          this.showResultText(t('roulette.resultBackground', { name: bgName }));
+        } else {
+          const fallback = 100;
+          this.state.applyRouletteReward(fallback);
+          this.showResultText(t('roulette.resultBackgroundAll', { points: formatNumber(fallback) }));
+        }
+        break;
+      }
+      default:
+        this.state.applyRouletteReward(points);
+        this.showResultText(t('roulette.resultPoints', { points: formatNumber(points) }));
+        break;
+    }
+  }
+
+  private findNextLockedBackground(): number | null {
+    // Pick a random locked roulette-only background — no repeats in order
+    const candidates = BACKGROUNDS_ASSETS
+      .map((bg, i) => ({ bg, i }))
+      .filter(({ bg, i }) => bg.rouletteOnly && !this.state.isBackgroundUnlocked(i));
+    if (candidates.length === 0) return null;
+    return candidates[Math.floor(Math.random() * candidates.length)].i;
   }
 
   private async onAdSpin(): Promise<void> {
@@ -157,16 +192,17 @@ export class RouletteModal {
   }
 
   private async onPaidSpin(): Promise<void> {
-    if (!this.state.spendForSpin()) return;
+    if (!this.state.canFreeSpin()) return;       // cooldown check
+    if (!this.state.spendForSpin()) return;       // afford check
+    this.state.consumeFreeSpin();                 // start cooldown
     await this.doSpin();
   }
 
-  private showResult(points: number): void {
+  private showResultText(text: string): void {
     if (!this.resultEl) return;
-    this.resultEl.textContent = `+${formatNumber(points)} ⭐`;
+    this.resultEl.textContent = text;
     this.resultEl.classList.remove('hidden');
     this.resultEl.classList.remove('roulette-result-pop');
-    // Force reflow for re-triggering animation
     void this.resultEl.offsetWidth;
     this.resultEl.classList.add('roulette-result-pop');
   }
@@ -178,35 +214,37 @@ export class RouletteModal {
   }
 
   private setAllButtonsDisabled(disabled: boolean): void {
-    if (this.freeSpinBtn) this.freeSpinBtn.disabled = disabled;
     if (this.adSpinBtn) this.adSpinBtn.disabled = disabled;
     if (this.paidSpinBtn) this.paidSpinBtn.disabled = disabled;
   }
 
   private updateButtons(): void {
-    if (!this.freeSpinBtn || !this.adSpinBtn || !this.paidSpinBtn) return;
+    if (!this.adSpinBtn || !this.paidSpinBtn) return;
     const spinning = this.wheel?.isSpinning ?? false;
-
-    // Free spin
-    const canFree = this.state.canFreeSpin();
-    this.freeSpinBtn.disabled = spinning || !canFree;
-    if (canFree) {
-      this.freeSpinBtn.textContent = '🎁 Free Spin';
-    } else {
-      const secs = Math.ceil(this.state.freeSpinCooldownRemaining() / 1_000);
-      const m = Math.floor(secs / 60);
-      const s = secs % 60;
-      this.freeSpinBtn.textContent = `🎁 Free (${m}:${String(s).padStart(2, '0')})`;
-    }
 
     // Ad spin — always available unless spinning
     this.adSpinBtn.disabled = spinning;
 
-    // Paid spin
+    // Paid spin: needs points + cooldown
     const canAfford = this.state.score >= ROULETTE_CONFIG.spinCost;
-    this.paidSpinBtn.disabled = spinning || !canAfford;
-    this.paidSpinBtn.textContent = `⭐ Spin (${formatNumber(ROULETTE_CONFIG.spinCost)})`;
-    this.paidSpinBtn.classList.toggle('roulette-btn-locked', !canAfford);
+    const cooldownReady = this.state.canFreeSpin();
+    const canSpin = canAfford && cooldownReady;
+
+    this.paidSpinBtn.disabled = spinning || !canSpin;
+    this.paidSpinBtn.classList.toggle('roulette-btn-locked', !canSpin);
+
+    if (!cooldownReady) {
+      const secs = Math.ceil(this.state.freeSpinCooldownRemaining() / 1_000);
+      const m = Math.floor(secs / 60);
+      const s = secs % 60;
+      this.paidSpinBtn.textContent = t('roulette.paidCooldown', {
+        time: `${m}:${String(s).padStart(2, '0')}`,
+      });
+    } else {
+      this.paidSpinBtn.textContent = t('roulette.spinPaid', {
+        cost: formatNumber(ROULETTE_CONFIG.spinCost),
+      });
+    }
   }
 
   private startTimer(): void {
@@ -298,7 +336,7 @@ const ROULETTE_CSS = /* css */ `
   }
 
   .roulette-result {
-    font-size: 28px;
+    font-size: 22px;
     font-weight: 800;
     color: #ffd700;
     text-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
@@ -306,6 +344,11 @@ const ROULETTE_CSS = /* css */ `
     display: flex;
     align-items: center;
     justify-content: center;
+    text-align: center;
+    word-break: break-word;
+    width: 100%;
+    padding: 0 8px;
+    box-sizing: border-box;
   }
 
   .roulette-result.hidden {
@@ -336,17 +379,21 @@ const ROULETTE_CSS = /* css */ `
     -webkit-backdrop-filter: blur(12px);
     border: 1px solid rgba(255, 255, 255, 0.18);
     color: #fff;
-    padding: 12px 18px;
+    padding: 10px 10px;
     border-radius: 14px;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     transition: background 0.2s, transform 0.15s, opacity 0.2s;
     font-family: inherit;
-    white-space: nowrap;
+    white-space: normal;
+    word-break: break-word;
     flex: 1;
     min-width: 0;
     text-align: center;
+    line-height: 1.25;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .roulette-spin-btn:hover:not(:disabled) {

@@ -1,8 +1,8 @@
 import type { GameState } from '../game-state';
 import type { UpgradeOption } from '../types';
-import { makeEl } from '@turbo-games/ui';
 import { ITEMS } from '../config/items';
 import { WEAPONS } from '../config/weapons';
+import { t } from '../i18n';
 
 export class GameUI {
   private _container: HTMLDivElement;
@@ -69,7 +69,7 @@ export class GameUI {
 
     const hpLabel = document.createElement('div');
     hpLabel.style.cssText = 'margin-bottom: 5px; display: flex; justify-content: space-between;';
-    hpLabel.innerHTML = `<strong>HP</strong>`;
+    hpLabel.innerHTML = `<strong>${t('ui.hp')}</strong>`;
     hpLabel.appendChild(this._hpText);
 
     hud.appendChild(hpLabel);
@@ -77,12 +77,12 @@ export class GameUI {
 
     this._goldText = document.createElement('div');
     this._goldText.style.cssText = 'margin-top: 10px;';
-    this._goldText.innerHTML = `<strong>Gold:</strong> 0`;
+    this._goldText.innerHTML = `<strong>${t('ui.gold')}</strong> 0`;
     hud.appendChild(this._goldText);
 
     this._waveText = document.createElement('div');
     this._waveText.style.cssText = 'margin-top: 5px;';
-    this._waveText.innerHTML = `<strong>Wave:</strong> 0`;
+    this._waveText.innerHTML = `<strong>${t('ui.wave')}</strong> 0`;
     hud.appendChild(this._waveText);
 
     this._upgradePanel = document.createElement('div');
@@ -119,11 +119,11 @@ export class GameUI {
     this._container.appendChild(this._gameOverPanel);
 
     this._state.events.on('gold:change', (gold: number) => {
-      this._goldText.innerHTML = `<strong>Gold:</strong> ${gold}`;
+      this._goldText.innerHTML = `<strong>${t('ui.gold')}</strong> ${gold}`;
     });
 
     this._state.events.on('wave:start', (wave: number) => {
-      this._waveText.innerHTML = `<strong>Wave:</strong> ${wave}`;
+      this._waveText.innerHTML = `<strong>${t('ui.wave')}</strong> ${wave}`;
     });
   }
 
@@ -137,7 +137,7 @@ export class GameUI {
   }
 
   showUpgradePanel(upgrades: UpgradeOption[]): void {
-    this._upgradePanel.innerHTML = '<h2 style="margin-top: 0; margin-bottom: 20px;">Choose an Upgrade</h2>';
+    this._upgradePanel.innerHTML = `<h2 style="margin-top: 0; margin-bottom: 20px;">${t('ui.chooseUpgrade')}</h2>`;
 
     const grid = document.createElement('div');
     grid.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;';
@@ -157,13 +157,13 @@ export class GameUI {
 
   showGameOver(wave: number, gold: number): void {
     this._gameOverPanel.innerHTML = `
-      <h1 style="margin-top: 0; color: #ff4444;">Game Over</h1>
-      <p style="font-size: 20px; margin: 20px 0;">Wave Reached: ${wave}</p>
-      <p style="font-size: 18px; margin: 20px 0;">Gold Collected: ${gold}</p>
+      <h1 style="margin-top: 0; color: #ff4444;">${t('ui.gameOver')}</h1>
+      <p style="font-size: 20px; margin: 20px 0;">${t('ui.waveReached', { wave })}</p>
+      <p style="font-size: 18px; margin: 20px 0;">${t('ui.goldCollected', { gold })}</p>
     `;
 
     const restartBtn = document.createElement('button');
-    restartBtn.textContent = 'Restart';
+    restartBtn.textContent = t('ui.restart');
     restartBtn.style.cssText = `
       padding: 12px 30px;
       font-size: 18px;
@@ -223,24 +223,26 @@ export class GameUI {
     if (upgrade.type === 'item' && upgrade.itemId) {
       const item = ITEMS.find((i) => i.id === upgrade.itemId);
       if (item) {
-        title = item.name;
-        description = item.description;
+        title = t(`items.${item.id}.name`, { defaultValue: item.name });
+        description = t(`items.${item.id}.description`, { defaultValue: item.description });
       }
     } else if (upgrade.type === 'weapon' && upgrade.weaponId) {
       const weapon = WEAPONS.find((w) => w.id === upgrade.weaponId);
       if (weapon) {
-        title = weapon.name;
-        description = weapon.description;
+        title = t(`weapons.${weapon.id}.name`, { defaultValue: weapon.name });
+        description = t(`weapons.${weapon.id}.description`, { defaultValue: weapon.description });
       }
     } else if (upgrade.type === 'stat' && upgrade.statBoost) {
       const boost = upgrade.statBoost;
-      title = `${boost.stat} Boost`;
+      title = t('ui.statBoostTitle', {
+        stat: t(`statNames.${String(boost.stat)}`, { defaultValue: String(boost.stat) }),
+      });
       description = `${boost.type === 'add' ? '+' : '×'}${boost.value}`;
     }
 
     card.innerHTML = `
       <div style="font-size: 14px; color: ${rarityColors[upgrade.rarity]}; margin-bottom: 8px;">
-        ${upgrade.rarity.toUpperCase()}
+        ${t(`rarity.${upgrade.rarity}`)}
       </div>
       <div style="font-size: 16px; font-weight: bold; margin-bottom: 8px;">${title}</div>
       <div style="font-size: 14px; color: #ccc;">${description}</div>
